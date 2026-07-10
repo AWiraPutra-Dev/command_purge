@@ -3,7 +3,12 @@ guid: 779bdcf68d70c83499a5ace24340f416
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: mouse_pad_mp_1
+    second: {fileID: 2100000, guid: 00e7c175eecf6e346a8f4e6dd01da5b8, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
