@@ -1,2 +1,14 @@
 fileFormatVersion: 2
 guid: 8d338bc70dab83b46ac271edae1850f3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - targetSubjectPhoto: {fileID: 997954797, guid: ea46b4fb47203ab4fa083ff930cfa776, type: 3}
+  - distractor1Photo: {fileID: 278919273, guid: d52f956d8e6120640965bc1f0949d112, type: 3}
+  - distractor2Photo: {fileID: -1071974851, guid: a43d89d34d064e54b8165cab1011d47a, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

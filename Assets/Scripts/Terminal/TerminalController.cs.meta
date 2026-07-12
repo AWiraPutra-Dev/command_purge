@@ -1,2 +1,35 @@
 fileFormatVersion: 2
 guid: 6996db3b810b26c46831d070b8d6746f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - playerInputFieldComponent: {instanceID: 0}
+  - outputScrollRectComponent: {instanceID: 0}
+  - outputContentTransform: {instanceID: 0}
+  - subjectPhotoImageComponent: {instanceID: 0}
+  - emptyPhotoPlaceholder: {fileID: -1656147307, guid: cb55c601dad5ca34ba8eb6e22ddc95f4, type: 3}
+  - confirmPanelObject: {instanceID: 0}
+  - confirmQuestionTextComponent: {instanceID: 0}
+  - iyaOptionTextComponent: {instanceID: 0}
+  - tidakOptionTextComponent: {instanceID: 0}
+  - folderIconObject: {instanceID: 0}
+  - folderImageComponent: {instanceID: 0}
+  - folderLabelTextComponent: {instanceID: 0}
+  - photoSelectionPanelObject: {instanceID: 0}
+  - subjectPhoto1ImageComponent: {instanceID: 0}
+  - subjectPhoto2ImageComponent: {instanceID: 0}
+  - subjectName1TextComponent: {instanceID: 0}
+  - subjectName2TextComponent: {instanceID: 0}
+  - photoInstructionTextComponent: {instanceID: 0}
+  - dataPanelObject: {instanceID: 0}
+  - dataIdTextComponent: {instanceID: 0}
+  - dataNameTextComponent: {instanceID: 0}
+  - dataDobTextComponent: {instanceID: 0}
+  - dataExpiryTextComponent: {instanceID: 0}
+  - terminalLinePrefabGameObject: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

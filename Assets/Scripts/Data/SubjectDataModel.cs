@@ -1,29 +1,24 @@
-using System;
+using UnityEngine;
 
-/// <summary>
-/// Data satu subject yang harus diverifikasi player.
-/// Tambah field baru di sini kalau butuh data tambahan (foto, sidik jari, dll).
-/// </summary>
-[Serializable]
+[System.Serializable]
 public class SubjectDataModel
 {
     public string subjectIdString;
     public string fullNameString;
+    public string genderString;
     public string dateOfBirthString;
     public string expiryDateString;
-    public bool   isMimicBool;
+    public bool isMimicBool;
+    public Sprite subjectPhoto;
 
-    public SubjectDataModel(
-        string subjectId,
-        string fullName,
-        string dateOfBirth,
-        string expiryDate,
-        bool   isMimic)
+    public SubjectDataModel(string id, string name, string gender, string dob, string expiry, bool isMimic, Sprite photo = null)
     {
-        subjectIdString    = subjectId;
-        fullNameString     = fullName;
-        dateOfBirthString  = dateOfBirth;
-        expiryDateString   = expiryDate;
-        isMimicBool        = isMimic;
+        subjectIdString = id;
+        fullNameString = name;
+        genderString = gender;
+        dateOfBirthString = dob;
+        expiryDateString = expiry;
+        isMimicBool = isMimic;
+        subjectPhoto = photo;
     }
 }
