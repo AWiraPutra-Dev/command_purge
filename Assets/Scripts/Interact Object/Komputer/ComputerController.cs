@@ -6,20 +6,30 @@ public class ComputerController : MonoBehaviour, IInteractable
     [Header("References")]
     [SerializeField] private Transform cameraSitPosition;
     [SerializeField] private FPSMovement playerMovement;
-    [SerializeField] private Transform playerCameraTransform; // Wajib diisi Main Camera!
+    [SerializeField] private Transform playerCameraTransform;
+    [SerializeField] private GameObject crosshairUI;
 
     [Header("Cinemachine (Unity 6 Virtual Camera)")]
-    // Diubah ke GameObject agar mutlak aman dari bug NullReference di Unity 6
-    [SerializeField] private GameObject cinemachineCameraObject; 
+    [SerializeField] private GameObject cinemachineCameraObject;
 
     [Header("Settings")]
     [SerializeField] private float lerpSpeed = 2f;
+    [SerializeField] private float lookSensitivity = 3f;
+    [SerializeField] private float maxLookAngle = 30f;
 
     private bool isUsing = false;
     private Vector3 originalCameraPosition;
     private Quaternion originalCameraRotation;
     private Coroutine cameraAnimCoroutine;
     private Transform originalParent;
+    private Quaternion _computerBaseRotation;
+    private float _computerLookYaw;
+
+    private void Awake()
+    {
+        if (crosshairUI == null)
+            crosshairUI = GameObject.Find("Crosshair");
+    }
 
     public bool IsUsing => isUsing;
 
@@ -44,23 +54,31 @@ public class ComputerController : MonoBehaviour, IInteractable
         return isUsing ? "Press [E] to Quit" : "Press [E] to Use Computer";
     }
 
+    void Update()
+    {
+        if (!isUsing) return;
+
+        float mouseX = Input.GetAxis("Mouse X") * lookSensitivity;
+        _computerLookYaw = Mathf.Clamp(_computerLookYaw + mouseX, -maxLookAngle, maxLookAngle);
+        playerCameraTransform.rotation = _computerBaseRotation * Quaternion.Euler(0, _computerLookYaw, 0);
+    }
+
     private IEnumerator EnterComputerAnimation()
     {
         playerMovement.enabled = false;
 
-        // Catat koordinat posisi asli sebelum dilepas parent-nya
         originalParent = playerCameraTransform.parent;
         originalCameraPosition = playerCameraTransform.position;
         originalCameraRotation = playerCameraTransform.rotation;
 
-        // Matikan Virtual Camera secara total agar Main Camera lepas dari kendali Cinemachine
         if (cinemachineCameraObject != null) cinemachineCameraObject.SetActive(false);
 
-        // Lepas dari parent sementara agar pergerakan Lerp murni menggunakan koordinat global dunia
         playerCameraTransform.SetParent(null);
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        if (crosshairUI != null) crosshairUI.SetActive(false);
 
         float elapsed = 0f;
         while (elapsed < 1f)
@@ -73,6 +91,9 @@ public class ComputerController : MonoBehaviour, IInteractable
 
         playerCameraTransform.position = cameraSitPosition.position;
         playerCameraTransform.rotation = cameraSitPosition.rotation;
+
+        _computerBaseRotation = playerCameraTransform.rotation;
+        _computerLookYaw = 0f;
 
         isUsing = true;
         cameraAnimCoroutine = null;
@@ -95,15 +116,15 @@ public class ComputerController : MonoBehaviour, IInteractable
         playerCameraTransform.position = originalCameraPosition;
         playerCameraTransform.rotation = originalCameraRotation;
 
-        // Kembalikan Main Camera ke struktur hierarchy player semula
         playerCameraTransform.SetParent(originalParent);
 
-        // Hidupkan kembali virtual camera agar kembali nempel mengikuti player
         if (cinemachineCameraObject != null) cinemachineCameraObject.SetActive(true);
         playerMovement.enabled = true;
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        if (crosshairUI != null) crosshairUI.SetActive(true);
 
         isUsing = false;
         cameraAnimCoroutine = null;
