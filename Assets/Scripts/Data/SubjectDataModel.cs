@@ -10,8 +10,9 @@ public class SubjectDataModel
     public string expiryDateString;
     public bool isMimicBool;
     public Sprite subjectPhoto;
+    public Sprite[] photoFrames;
 
-    public SubjectDataModel(string id, string name, string gender, string dob, string expiry, bool isMimic, Sprite photo = null)
+    public SubjectDataModel(string id, string name, string gender, string dob, string expiry, bool isMimic, Sprite photo = null, Sprite[] frames = null)
     {
         subjectIdString = id;
         fullNameString = name;
@@ -20,5 +21,6 @@ public class SubjectDataModel
         expiryDateString = expiry;
         isMimicBool = isMimic;
         subjectPhoto = photo;
+        photoFrames = frames;
     }
 }

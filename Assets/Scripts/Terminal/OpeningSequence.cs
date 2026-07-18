@@ -327,6 +327,7 @@ public class OpeningSequence : MonoBehaviour
 
         storyText.text = "";
         terminalController.ShowDataPanel(selectedSubject);
+        terminalController.AddLine("Ketik 'confirm' untuk mencetak dokumen.", TerminalLineType.System);
 
         while (true)
         {
@@ -336,6 +337,18 @@ public class OpeningSequence : MonoBehaviour
         }
 
         terminalController.HideDataPanel();
+
+        terminalController.ShowTypeTestPanel("KETIK: typetest");
+        terminalController.AddLine("Ketik 'typetest' untuk lanjut mencetak.", TerminalLineType.Warning);
+
+        while (true)
+        {
+            yield return StartCoroutine(WaitForInputRaw());
+            if (pendingInput.ToLower() == "typetest") break;
+            terminalController.AddLine("Ketik 'typetest' untuk lanjut.", TerminalLineType.Error);
+        }
+
+        terminalController.HideTypeTestPanel();
 
         storyText.text = "";
         yield return StartCoroutine(TypeStoryText("Mencetak dokumen...", append: false));
@@ -366,13 +379,14 @@ public class OpeningSequence : MonoBehaviour
         yield return new WaitForSeconds(lineDelay);
         if (standbyCursor != null) standbyCursor.SetActive(false);
 
-        terminalController.AddLine("SISTEM VERIFIKASI AKTIF.", TerminalLineType.Response);
-        terminalController.AddLine("Ketik 'help' untuk melihat daftar perintah.", TerminalLineType.System);
-
         terminalController.inputBlocked = false;
         playerInputField.gameObject.SetActive(true);
         terminalController.FocusInput();
-        terminalController.StartTutorial();
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnTutorialComplete();
+        else
+            terminalController.StartTutorial();
     }
 
     // ══════════════════════════════════════════════════════════════════

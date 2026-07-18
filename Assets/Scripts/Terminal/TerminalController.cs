@@ -50,8 +50,41 @@ public class TerminalController : MonoBehaviour
     [SerializeField] private TMP_Text   dataDobTextComponent;
     [SerializeField] private TMP_Text   dataExpiryTextComponent;
 
+    [Header("Inspect Panel — foto zoom + rotate")]
+    [SerializeField] private GameObject inspectPanelObject;
+    [SerializeField] private Image      inspectPhotoImageComponent;
+    [SerializeField] private TMP_Text   inspectCounterTextComponent;
+    [SerializeField] private GameObject inspectLeftArrowObject;
+    [SerializeField] private GameObject inspectRightArrowObject;
+
+    [Header("Loading Panel — animasi print")]
+    [SerializeField] private GameObject loadingPanelObject;
+    [SerializeField] private RectTransform loadingBarRectTransform;
+    [SerializeField] private float       loadingDuration = 3f;
+
+    public float GetPrintDuration() => Mathf.Max(0.1f, loadingDuration);
+
+    [Header("Type Test Panel — robot check")]
+    [SerializeField] private GameObject typeTestPanelObject;
+    [SerializeField] private TMP_Text   typeTestPromptTextComponent;
+
+    [Header("Folder Notification — tanda kasus baru")]
+    [SerializeField] private GameObject folderNotificationObject;
+
+    [Header("Ask / Info / Check Panel — menu utama investigasi")]
+    [SerializeField] private GameObject askInfoCheckPanelObject;
+    [SerializeField] private TMP_Text   askInfoCheckTextComponent;
+    [SerializeField] private Image      askInfoCheckPhotoImage;
+
+    [Header("Verdict Panel — hasil approved / denied")]
+    [SerializeField] private GameObject verdictPanelObject;
+    [SerializeField] private TMP_Text   verdictTextComponent;
+
     [Header("Line Prefab")]
     [SerializeField] private GameObject terminalLinePrefabGameObject;
+
+    [Header("Subject Definitions (4 case utama) — drag asset ke sini")]
+    [SerializeField] private List<SubjectDefinition> subjectDefinitionList = new List<SubjectDefinition>();
 
     [Header("Batas Baris Terminal")]
     [SerializeField] private int maxLines = 4;
@@ -83,6 +116,7 @@ public class TerminalController : MonoBehaviour
 
         commandProcessorService = new CommandProcessorService(HandleNewLineAdded);
         commandProcessorService.OnSubjectPhotoChanged += HandleSubjectPhotoChanged;
+        commandProcessorService.SetSubjectDefinitionList(subjectDefinitionList);
     }
 
     private void Start()
@@ -134,6 +168,12 @@ public class TerminalController : MonoBehaviour
         if (folderIconObject         != null) folderIconObject.SetActive(false);
         if (photoSelectionPanelObject!= null) photoSelectionPanelObject.SetActive(false);
         if (dataPanelObject          != null) dataPanelObject.SetActive(false);
+        if (inspectPanelObject       != null) inspectPanelObject.SetActive(false);
+        if (loadingPanelObject       != null) loadingPanelObject.SetActive(false);
+        if (typeTestPanelObject      != null) typeTestPanelObject.SetActive(false);
+        if (folderNotificationObject  != null) folderNotificationObject.SetActive(false);
+        if (askInfoCheckPanelObject   != null) askInfoCheckPanelObject.SetActive(false);
+        if (verdictPanelObject        != null) verdictPanelObject.SetActive(false);
     }
 
     // ═══════════════════════════════════════════════
@@ -254,6 +294,144 @@ public class TerminalController : MonoBehaviour
         if (id == "S-0043") return subject0043Photo;
         if (id == "S-0044") return subject0044Photo;
         return null;
+    }
+
+    // ═══════════════════════════════════════════════
+    // INSPECT PANEL — foto zoom + rotate
+    // ═══════════════════════════════════════════════
+    public void ShowInspectPanel(Sprite[] frames, int currentIndex)
+    {
+        HideAllTutorialPanels();
+        if (inspectPanelObject != null) inspectPanelObject.SetActive(true);
+        UpdateInspectPhoto(frames, currentIndex);
+    }
+
+    public void UpdateInspectPhoto(Sprite[] frames, int currentIndex)
+    {
+        if (frames == null || frames.Length == 0) return;
+
+        if (inspectPhotoImageComponent != null)
+            inspectPhotoImageComponent.sprite = frames[currentIndex];
+
+        if (inspectCounterTextComponent != null)
+            inspectCounterTextComponent.text = (currentIndex + 1) + "/" + frames.Length;
+
+        if (inspectLeftArrowObject != null)
+            inspectLeftArrowObject.SetActive(currentIndex > 0);
+
+        if (inspectRightArrowObject != null)
+            inspectRightArrowObject.SetActive(currentIndex < frames.Length - 1);
+    }
+
+    public void HideInspectPanel()
+    {
+        if (inspectPanelObject != null) inspectPanelObject.SetActive(false);
+    }
+
+    // ═══════════════════════════════════════════════
+    // LOADING PANEL — animasi print
+    // ═══════════════════════════════════════════════
+    public void ShowLoadingPanel()
+    {
+        HideAllTutorialPanels();
+        if (loadingPanelObject != null) loadingPanelObject.SetActive(true);
+    }
+
+    public void HideLoadingPanel()
+    {
+        if (loadingPanelObject != null) loadingPanelObject.SetActive(false);
+    }
+
+    // ═══════════════════════════════════════════════
+    // TYPE TEST PANEL — robot check
+    // ═══════════════════════════════════════════════
+    public void ShowTypeTestPanel(string prompt)
+    {
+        HideAllTutorialPanels();
+        if (typeTestPanelObject != null) typeTestPanelObject.SetActive(true);
+        if (typeTestPromptTextComponent != null)
+            typeTestPromptTextComponent.text = prompt;
+    }
+
+    public void HideTypeTestPanel()
+    {
+        if (typeTestPanelObject != null) typeTestPanelObject.SetActive(false);
+    }
+
+    // ═══════════════════════════════════════════════
+    // FOLDER NOTIFICATION — tanda kasus baru
+    // ═══════════════════════════════════════════════
+    public void ShowFolderNotification()
+    {
+        if (folderNotificationObject != null) folderNotificationObject.SetActive(true);
+    }
+
+    public void HideFolderNotification()
+    {
+        if (folderNotificationObject != null) folderNotificationObject.SetActive(false);
+    }
+
+    // ═══════════════════════════════════════════════
+    // ASK / INFO / CHECK PANEL — menu utama investigasi
+    // ═══════════════════════════════════════════════
+    public void ShowAskInfoCheckPanel()
+    {
+        HideAllTutorialPanels();
+        if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
+        if (askInfoCheckTextComponent != null)
+            askInfoCheckTextComponent.text =
+                "ASK      INFO      CHECK\n" +
+                "APPROVED  DENIED\n" +
+                "(ketik perintah di terminal)";
+    }
+
+    public void SetAskInfoCheckPhoto(Sprite photo)
+    {
+        if (askInfoCheckPhotoImage == null) return;
+        askInfoCheckPhotoImage.sprite = photo;
+        askInfoCheckPhotoImage.enabled = photo != null;
+    }
+
+    public void ShowAskQuestionPanel()
+    {
+        HideAllTutorialPanels();
+        if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
+        if (askInfoCheckTextComponent != null)
+            askInfoCheckTextComponent.text =
+                "ID\n" +
+                "NAME\n" +
+                "REASON\n" +
+                "(ketik ID / NAME / REASON di terminal)";
+    }
+
+    public void HideAskInfoCheckPanel()
+    {
+        if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(false);
+        SetAskInfoCheckPhoto(null);
+    }
+
+    // ═══════════════════════════════════════════════
+    // VERDICT PANEL — hasil approved / denied
+    // ═══════════════════════════════════════════════
+    public void ShowVerdictPanel(bool approved)
+    {
+        HideAllTutorialPanels();
+        if (verdictPanelObject != null) verdictPanelObject.SetActive(true);
+        if (verdictTextComponent != null)
+            verdictTextComponent.text = "VERDICT: " + (approved ? "APPROVED" : "DENIED");
+    }
+
+    public void HideVerdictPanel()
+    {
+        if (verdictPanelObject != null) verdictPanelObject.SetActive(false);
+    }
+
+    // ═══════════════════════════════════════════════
+    // SERVICE ACCESS
+    // ═══════════════════════════════════════════════
+    public CommandProcessorService GetCommandProcessor()
+    {
+        return commandProcessorService;
     }
 
     // ═══════════════════════════════════════════════
@@ -394,5 +572,18 @@ public class TerminalController : MonoBehaviour
         if (photoSelectionPanelObject == null) Debug.LogWarning("[TerminalController] photoSelectionPanelObject belum di-assign!");
         if (dataPanelObject           == null) Debug.LogWarning("[TerminalController] dataPanelObject belum di-assign!");
         if (dataGenderTextComponent   == null) Debug.LogWarning("[TerminalController] dataGenderTextComponent belum di-assign!");
+
+        if (inspectPanelObject        == null) Debug.LogWarning("[TerminalController] inspectPanelObject belum di-assign!");
+        if (inspectPhotoImageComponent== null) Debug.LogWarning("[TerminalController] inspectPhotoImageComponent belum di-assign!");
+        if (loadingPanelObject        == null) Debug.LogWarning("[TerminalController] loadingPanelObject belum di-assign!");
+        if (loadingBarRectTransform   == null) Debug.LogWarning("[TerminalController] loadingBarRectTransform belum di-assign!");
+        if (typeTestPanelObject      == null) Debug.LogWarning("[TerminalController] typeTestPanelObject belum di-assign!");
+        if (typeTestPromptTextComponent== null) Debug.LogWarning("[TerminalController] typeTestPromptTextComponent belum di-assign!");
+        if (folderNotificationObject  == null) Debug.LogWarning("[TerminalController] folderNotificationObject belum di-assign!");
+        if (askInfoCheckPanelObject   == null) Debug.LogWarning("[TerminalController] askInfoCheckPanelObject belum di-assign!");
+        if (askInfoCheckTextComponent == null) Debug.LogWarning("[TerminalController] askInfoCheckTextComponent belum di-assign!");
+        if (askInfoCheckPhotoImage    == null) Debug.LogWarning("[TerminalController] askInfoCheckPhotoImage belum di-assign!");
+        if (verdictPanelObject        == null) Debug.LogWarning("[TerminalController] verdictPanelObject belum di-assign!");
+        if (verdictTextComponent      == null) Debug.LogWarning("[TerminalController] verdictTextComponent belum di-assign!");
     }
 }

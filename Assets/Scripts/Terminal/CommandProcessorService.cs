@@ -11,6 +11,7 @@ public class CommandProcessorService
 
     private Dictionary<string, int> attemptCountBySubjectId = new Dictionary<string, int>();
 
+    // Tutorial: subject hardcode (S-0042/0043/0044), tidak scalable
     private List<SubjectDataModel> subjectDatabaseList = new List<SubjectDataModel>()
     {
         new SubjectDataModel("S-0042", "Ahmad",    "Laki-laki",  "1987-03-14", "2027-03-14", false),
@@ -18,15 +19,29 @@ public class CommandProcessorService
         new SubjectDataModel("S-0044", "Sari", "Perempuan",  "1995-11-02", "2028-11-02", true),
     };
 
+    // 4 case utama: subject scalable lewat asset SubjectDefinition.
+    // List ini diisi lewat TerminalController (subjectDefinitionList) biar muncul di Inspector.
+    private List<SubjectDefinition> subjectDefinitionList;
+
     public delegate void OnLineAddedDelegate(string text, TerminalLineType lineType);
     private OnLineAddedDelegate onLineAddedCallback;
 
     public Action<Sprite> OnSubjectPhotoChanged;
     public Action<bool, SubjectDataModel> OnVerdictResolved;
 
+    private CaseManager caseManager;
+    private bool inputBlocked;
+    private bool isInGameplay;
+
     public CommandProcessorService(OnLineAddedDelegate lineCallback)
     {
         onLineAddedCallback = lineCallback;
+    }
+
+    public void SetCaseManager(CaseManager cm)
+    {
+        caseManager = cm;
+        isInGameplay = true;
     }
 
     public void SetSubjectPhoto(string id, Sprite photo)
@@ -36,13 +51,43 @@ public class CommandProcessorService
             subject.subjectPhoto = photo;
     }
 
+    public void SetSubjectDefinitionList(List<SubjectDefinition> list)
+    {
+        subjectDefinitionList = list;
+    }
+
     public SubjectDataModel GetSubjectById(string id)
     {
+        // 4 case utama: cari di SubjectDefinition (scalable)
+        SubjectDefinition def = subjectDefinitionList != null
+            ? subjectDefinitionList.Find(s => s.subjectId == id)
+            : null;
+        if (def != null)
+        {
+            Sprite[] frames = def.photoFrames;
+            return new SubjectDataModel(
+                def.subjectId, def.fullName, def.gender, def.dateOfBirth,
+                def.expiryDate, def.isMimic, def.subjectPhoto, frames);
+        }
+
+        // Tutorial: fallback ke database hardcode
         return subjectDatabaseList.Find(s => s.subjectIdString == id);
+    }
+
+    public void ExecuteFetchById(string id)
+    {
+        ExecuteFetchCommand(new string[] { "fetch", id.ToUpper() });
+    }
+
+    public void BlockInput(bool block)
+    {
+        inputBlocked = block;
     }
 
     public void ProcessCommand(string rawInputString)
     {
+        if (inputBlocked) return;
+
         string trimmedInputString = rawInputString.Trim().ToLower();
         string[] inputPartsArray = trimmedInputString.Split(' ');
         string baseCommandString = inputPartsArray[0];
@@ -51,26 +96,49 @@ public class CommandProcessorService
 
         if (string.IsNullOrWhiteSpace(trimmedInputString)) return;
 
+        // ── CASE ACTIVE: delegate ALL input to CaseManager state machine ──
+        if (isInGameplay && caseManager != null && caseManager.IsCaseActive)
+        {
+            caseManager.ProcessInput(trimmedInputString, inputPartsArray);
+            return;
+        }
+
+        // ── GLOBAL COMMANDS (free mode) ──
         switch (baseCommandString)
         {
             case "help": ExecuteHelpCommand(); break;
             case "status": ExecuteStatusCommand(); break;
             case "fetch": ExecuteFetchCommand(inputPartsArray); break;
-            case "approved": ExecuteVerdictCommand(isApproved: true); break;
-            case "denied": ExecuteVerdictCommand(isApproved: false); break;
+            case "approved": ExecuteLegacyVerdict(true); break;
+            case "denied": ExecuteLegacyVerdict(false); break;
             case "clear": ExecuteClearCommand(); break;
             default: ExecuteUnknownCommand(baseCommandString); break;
         }
     }
 
+    private void ExecuteLegacyVerdict(bool approved)
+    {
+        ExecuteVerdictCommand(approved);
+    }
+
+    // ═══════════════════════════════════════════════
+    // LEGACY COMMANDS (free mode after tutorial)
+    // ═══════════════════════════════════════════════
     private void ExecuteHelpCommand()
     {
         AddLine("=== AVAILABLE COMMANDS ===", TerminalLineType.System);
         AddLine("help           — daftar perintah", TerminalLineType.Response);
         AddLine("status         — cek status sistem", TerminalLineType.Response);
         AddLine("fetch [id]     — ambil file subject", TerminalLineType.Response);
+        AddLine("open           — buka kasus (mode kasus)", TerminalLineType.Response);
+        AddLine("ask            — tampilkan daftar pertanyaan", TerminalLineType.Response);
+        AddLine("info           — lihat data subjek", TerminalLineType.Response);
+        AddLine("check          — periksa foto subjek", TerminalLineType.Response);
+        AddLine("rotate         — putar foto subject (saat check)", TerminalLineType.Response);
         AddLine("approved       — setujui subject aktif", TerminalLineType.Response);
         AddLine("denied         — tolak subject aktif", TerminalLineType.Response);
+        AddLine("print          — cetak dokumen setelah verdict", TerminalLineType.Response);
+        AddLine("esc            — kembali ke menu utama kasus", TerminalLineType.Response);
         AddLine("clear          — bersihkan layar", TerminalLineType.Response);
         AddLine("==========================", TerminalLineType.System);
     }
