@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc221215dcb44748977b0639ef7361c, type: 3}
+  m_Name: Case1
+  m_EditorClassIdentifier: Assembly-CSharp::CaseDefinition
+  caseNumber: 1
+  caseType: 0
+  subjectId: D-002
+  notificationText: New Case
+  maxChances: 5
+  questions:
+  - questionText: Ask About His Id
+    realResponse: My Id is ID-1
+    mimicResponse: 
+    useTypeTest: 1
+    typeTestPrompt: Ask About His Id
+    typeTestAnswer: 
+  - questionText: Ask About His Name
+    realResponse: My Name Is Hai
+    mimicResponse: 
+    useTypeTest: 1
+    typeTestPrompt: Ask About His Name
+    typeTestAnswer: 
+  - questionText: Ask About His Reason
+    realResponse: Im Hungry
+    mimicResponse: 
+    useTypeTest: 1
+    typeTestPrompt: Ask About His Reason
+    typeTestAnswer: 
+  usePrintTypeTest: 1
+  printTypeTestPrompt: 'Lorem ipsum dolot '
+  printTypeTestAnswer: 
+  forceApprovedOnly: 0
+  glitchOnRotate: 0

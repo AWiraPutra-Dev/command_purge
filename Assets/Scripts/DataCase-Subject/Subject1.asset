@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58efca9d2e509714fbe1366be6287971, type: 3}
+  m_Name: Subject1
+  m_EditorClassIdentifier: Assembly-CSharp::SubjectDefinition
+  subjectId: D-002
+  fullName: HaiRoi
+  gender: Male
+  dateOfBirth: 19/01/1999
+  expiryDate: 7/17/2006
+  isMimic: 0
+  subjectPhoto: {fileID: 2090144673, guid: 814b08f5930bd2344a298309a8356e8b, type: 3}
+  photoFrames:
+  - {fileID: 2090144673, guid: 814b08f5930bd2344a298309a8356e8b, type: 3}
+  - {fileID: -371207200, guid: 0006fcec89535104eb521c49154f5a23, type: 3}
+  - {fileID: -1875535332, guid: bc5f5c6603f15874198dbb55c3d7c509, type: 3}
+  - {fileID: 2125644422, guid: cc35dc61c70bf5b4bbd7476569ebf7a5, type: 3}
