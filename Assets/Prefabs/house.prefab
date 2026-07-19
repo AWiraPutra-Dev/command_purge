@@ -372,8 +372,11 @@ MonoBehaviour:
   cameraSitPosition: {fileID: 719114656765007003}
   playerMovement: {fileID: 6512699975702126445}
   playerCameraTransform: {fileID: 243338027351879991}
+  crosshairUI: {fileID: 0}
   cinemachineCameraObject: {fileID: 6569605137405266770}
   lerpSpeed: 2
+  lookSensitivity: 3
+  maxLookAngle: 30
 --- !u!1 &56975790443169411
 GameObject:
   m_ObjectHideFlags: 0
@@ -2685,6 +2688,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Ladder
   playerMovement: {fileID: 6512699975702126445}
   bottomGrabTarget: {fileID: 0}
+  topGrabTarget: {fileID: 0}
 --- !u!1 &1400022631901386054
 GameObject:
   m_ObjectHideFlags: 0
@@ -4122,6 +4126,7 @@ MonoBehaviour:
   mainCameraTransform: {fileID: 243338027351879991}
   cinemachineCameraObject: {fileID: 6569605137405266770}
   playerMovement: {fileID: 2242833577944051397}
+  crosshairUI: {fileID: 0}
   lerpSpeed: 2.5
 --- !u!1 &2099386054538698980
 GameObject:
@@ -16271,6 +16276,7 @@ MonoBehaviour:
   interactPrompt: 'Press [E] For Down '
   playerMovement: {fileID: 6512699975702126445}
   topGrabTarget: {fileID: 0}
+  bottomGrabTarget: {fileID: 0}
   audioSource: {fileID: 0}
   openSound: {fileID: 0}
   closeSound: {fileID: 0}
@@ -18184,27 +18190,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5725956444166090526, guid: 1c0ba2deed2732448ac8c9496ce6f0e2, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.004096031
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5725956444166090526, guid: 1c0ba2deed2732448ac8c9496ce6f0e2, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.6070366
+      value: 0.6000004
       objectReference: {fileID: 0}
     - target: {fileID: 5725956444166090526, guid: 1c0ba2deed2732448ac8c9496ce6f0e2, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.35226393
+      value: 0.35291797
       objectReference: {fileID: 0}
     - target: {fileID: 5725956444166090526, guid: 1c0ba2deed2732448ac8c9496ce6f0e2, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.00013395245
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5725956444166090526, guid: 1c0ba2deed2732448ac8c9496ce6f0e2, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.9358965
+      value: -0.9356543
       objectReference: {fileID: 0}
     - target: {fileID: 5725956444166090526, guid: 1c0ba2deed2732448ac8c9496ce6f0e2, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.0028138794
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
