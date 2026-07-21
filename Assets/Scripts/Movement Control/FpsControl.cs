@@ -64,8 +64,16 @@ public class FPSMovement : MonoBehaviour
     private bool _isReleasing;
     private float _climbStartBoundaryY;
     private float _climbingStuckFrames;
+    private bool _hasPassedMidpoint;
+
+    private CinemachinePanTilt _panTilt;
+    private Vector2 _savedPanRange;
+    private Vector2 _savedTiltRange;
+    private bool _hasSavedCameraRanges;
 
     public System.Action OnLadderReleaseAtBoundary;
+    public System.Action OnPassedMidpoint;
+    public System.Action OnClimbEnded;
 
     private void Awake()
     {
@@ -74,6 +82,7 @@ public class FPSMovement : MonoBehaviour
         if (cameraTransform != null)
         {
             _cinemachineCamera = cameraTransform.GetComponent<CinemachineCamera>();
+            _panTilt = cameraTransform.GetComponent<CinemachinePanTilt>();
             _mainCameraComponent = cameraTransform.GetComponentInChildren<Camera>();
             _mainCameraTransform = _mainCameraComponent != null
                 ? _mainCameraComponent.transform
@@ -178,7 +187,7 @@ public class FPSMovement : MonoBehaviour
                             _isAtEndBoundary = false;
                             _climbDirection = Mathf.RoundToInt(vertical);
                             _currentClimbSpeed = vertical * climbSpeed;
-                            _characterController.Move(_ladderGrabDirection * _currentClimbSpeed * Time.deltaTime);
+                            _characterController.Move(new Vector3(0, _currentClimbSpeed, 0) * Time.deltaTime);
                         }
                     }
                 }
@@ -225,7 +234,7 @@ public class FPSMovement : MonoBehaviour
                 targetRot = Quaternion.LookRotation(dirVec.normalized);
         }
 
-        float duration = 3.5f;
+        float duration = dir == 1 ? 3.5f / 1.8f : 3.5f;
         float elapsed = 0f;
 
         float startPan = 0f;
@@ -292,6 +301,7 @@ public class FPSMovement : MonoBehaviour
         _isAtEndBoundary = false;
         _hasReachedBoundary = true;
         _climbingStuckFrames = 0;
+        _hasPassedMidpoint = false;
 
         if (_mainCameraComponent != null)
             _mainCameraComponent.fieldOfView = _baseFov + 5f;
@@ -305,6 +315,29 @@ public class FPSMovement : MonoBehaviour
         }
 
         _isReleasing = false;
+
+        LockClimbCamera();
+    }
+
+    private void LockClimbCamera()
+    {
+        if (_panTilt == null) return;
+
+        _savedPanRange = _panTilt.PanAxis.Range;
+        _savedTiltRange = _panTilt.TiltAxis.Range;
+        _hasSavedCameraRanges = true;
+
+        _panTilt.PanAxis.Range = new Vector2(0f, 0f);
+        _panTilt.TiltAxis.Range = new Vector2(-90f, 90f);
+    }
+
+    private void UnlockClimbCamera()
+    {
+        if (_panTilt == null || !_hasSavedCameraRanges) return;
+
+        _panTilt.PanAxis.Range = _savedPanRange;
+        _panTilt.TiltAxis.Range = _savedTiltRange;
+        _hasSavedCameraRanges = false;
     }
 
     private void HandleGravity()
@@ -336,6 +369,7 @@ public class FPSMovement : MonoBehaviour
             {
                 Vector3 camPos = _mainCameraTransform.localPosition;
                 camPos.x = Mathf.Lerp(camPos.x, _baseCameraX, Time.deltaTime * 3f);
+                camPos.y = Mathf.Lerp(camPos.y, _baseCameraY, Time.deltaTime * 3f);
                 _mainCameraTransform.localPosition = camPos;
                 _swingRollOffset = Mathf.Lerp(_swingRollOffset, 0f, Time.deltaTime * 3f);
             }
@@ -418,6 +452,21 @@ public class FPSMovement : MonoBehaviour
             return;
         }
 
+        if (!_hasPassedMidpoint)
+        {
+            float midY = (_climbTopY + _climbBottomY) * 0.5f;
+            if (_climbDirection == -1 && transform.position.y <= midY)
+            {
+                _hasPassedMidpoint = true;
+                OnPassedMidpoint?.Invoke();
+            }
+            else if (_climbDirection == 1 && transform.position.y >= midY)
+            {
+                _hasPassedMidpoint = true;
+                OnPassedMidpoint?.Invoke();
+            }
+        }
+
         if (vertical != 0 && Mathf.Abs(actualDY) < 0.0001f)
         {
             _climbingStuckFrames++;
@@ -475,6 +524,8 @@ public class FPSMovement : MonoBehaviour
             pos.y = _baseCameraY;
             _mainCameraTransform.localPosition = pos;
         }
+
+        UnlockClimbCamera();
     }
 
     private void ApplyDutchTilt()
@@ -597,6 +648,7 @@ public class FPSMovement : MonoBehaviour
 
         _isReleasing = false;
         StopClimbing();
+        OnClimbEnded?.Invoke();
     }
 
     public void StartLadderClimb(Vector3 grabPosition, Vector3 grabDirection, float topBoundaryY, float bottomBoundaryY, bool fromTop)

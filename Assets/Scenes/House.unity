@@ -262,7 +262,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3465377741653353336, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.7434
+      value: -0.6504
       objectReference: {fileID: 0}
     - target: {fileID: 3465377741653353336, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
       propertyPath: m_LocalPosition.z
@@ -346,7 +346,7 @@ PrefabInstance:
       objectReference: {fileID: 2007411551}
     - target: {fileID: 6512699975702126445, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
       propertyPath: walkSpeed
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6512699975702126445, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
       propertyPath: climbSpeed

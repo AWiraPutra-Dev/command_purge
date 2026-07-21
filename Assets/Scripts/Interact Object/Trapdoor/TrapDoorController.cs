@@ -60,16 +60,51 @@ public class TrapDoorController : MonoBehaviour, IInteractable
         );
 
         if (playerMovement != null)
+        {
             playerMovement.OnLadderReleaseAtBoundary += OnPlayerReleasedLadderAtBoundary;
+            playerMovement.OnPassedMidpoint += OnPassedMidpoint;
+            playerMovement.OnClimbEnded += OnClimbEnded;
+        }
     }
 
     void OnDestroy()
     {
         if (playerMovement != null)
+        {
             playerMovement.OnLadderReleaseAtBoundary -= OnPlayerReleasedLadderAtBoundary;
+            playerMovement.OnPassedMidpoint -= OnPassedMidpoint;
+            playerMovement.OnClimbEnded -= OnClimbEnded;
+        }
     }
 
     private void OnPlayerReleasedLadderAtBoundary()
+    {
+        if (playerMovement == null) return;
+
+        float playerY = playerMovement.transform.position.y;
+        float topY = topGrabTarget != null ? topGrabTarget.position.y : playerY + 2f;
+        float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : playerY - 2f;
+        float midY = (topY + bottomY) * 0.5f;
+
+        if (playerY >= midY && currentState == DoorState.Closed)
+        {
+            // Player releases at top floor -> open door
+            StartCoroutine(OpenRoutine());
+        }
+        else if (playerY < midY && currentState == DoorState.Open)
+        {
+            // Player releases at bottom floor -> close door
+            StartCoroutine(CloseRoutine());
+        }
+    }
+
+    private void OnPassedMidpoint()
+    {
+        if (currentState == DoorState.Open)
+            StartCoroutine(CloseRoutine());
+    }
+
+    private void OnClimbEnded()
     {
         if (currentState == DoorState.Open)
             StartCoroutine(CloseRoutine());
@@ -186,6 +221,33 @@ public class TrapDoorController : MonoBehaviour, IInteractable
                 dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
             playerMovement.ForceStartClimbing(topGrabTarget.position, dir, topY, bottomY, -1);
         }
+    }
+
+    private IEnumerator OpenRoutine()
+    {
+        if (currentState != DoorState.Closed) yield break;
+        currentState = DoorState.Opening;
+
+        if (_doorCollider != null)
+            _doorCollider.enabled = false;
+
+        if (audioSource != null && openSound != null)
+            audioSource.PlayOneShot(openSound);
+
+        float elapsed = 0f;
+        Quaternion startRot = doorMeshTransform.localRotation;
+
+        while (elapsed < openDuration)
+        {
+            float t = elapsed / openDuration;
+            t = SmoothProgress(t);
+            doorMeshTransform.localRotation = Quaternion.Slerp(startRot, openLocalRotation, t);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        doorMeshTransform.localRotation = openLocalRotation;
+        currentState = DoorState.Open;
     }
 
     private IEnumerator CloseRoutine()
