@@ -541,6 +541,8 @@ public class FPSMovement : MonoBehaviour
     }
 
     public bool IsClimbing() => _isClimbing;
+    public bool IsMoving() => _moveInput.magnitude > 0.01f;
+    public float GetMoveMagnitude() => Mathf.Clamp01(_moveInput.magnitude);
     public bool IsTransitioningToLadder() => _isReleasing;
     public bool HasReachedBoundary() => _hasReachedBoundary;
     public string GetClimbReleasePrompt() => _hasReachedBoundary ? letGoPrompt : "";

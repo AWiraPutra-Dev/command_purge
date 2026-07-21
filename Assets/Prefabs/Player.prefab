@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 2071955666003624866}
   - component: {fileID: 3440813628199207437}
   - component: {fileID: 3131085666041021197}
-  - component: {fileID: 6598180657732857932}
+  - component: {fileID: 4824601758937215489}
   - component: {fileID: 5300115911919484992}
   m_Layer: 0
   m_Name: PlayerCamera
@@ -113,22 +113,6 @@ MonoBehaviour:
       Wait: 1
       Time: 2
     Restrictions: 0
---- !u!114 &6598180657732857932
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1674706538676655483}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b6c240a37d145e6409d1f1e9adbddad5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraBreathEffect
-  posAmplitude: 0.008
-  posFrequency: 0.8
-  rotAmplitude: 0.6
-  rotFrequency: 0.5
 --- !u!114 &5300115911919484992
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -542,3 +526,24 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+--- !u!114 &4824601758937215489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1674706538676655483}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6c240a37d145e6409d1f1e9adbddad5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraBreathEffect
+  fpsMovement: {fileID: 1619026158730101060}
+  breathDuration: 5
+  breathPosAmplitude: 0.06
+  breathRotAmplitude: 3
+  walkPosAmplitude: 0.04
+  walkRotAmplitude: 1.5
+  walkFrequency: 5
+  walkLateralAmplitude: 0.015
+  blendSpeed: 2.5
