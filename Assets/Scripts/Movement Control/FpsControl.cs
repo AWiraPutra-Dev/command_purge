@@ -397,9 +397,9 @@ public class FPSMovement : MonoBehaviour
                 targetPos.y = _climbDismountBoundaryY + 1.6f;
                 if (_ladderGrabDirection.magnitude > 0.01f)
                 {
-                    targetPos += _ladderGrabDirection * 1.2f;
+                    targetPos += _ladderGrabDirection * 0.4f;
                     Vector3 right = Vector3.Cross(Vector3.up, _ladderGrabDirection).normalized;
-                    targetPos += right * 0.4f;
+                    targetPos += right * -0.2f;
                 }
                 StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f));
             }

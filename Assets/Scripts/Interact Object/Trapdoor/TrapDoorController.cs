@@ -13,7 +13,7 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     [Header("Timing")]
     [SerializeField] private float openDuration = 0.8f;
     [SerializeField] private float closeDuration = 0.6f;
-    [SerializeField] private float autoCloseDelay = 4f;
+    [SerializeField] private float autoCloseDelay = 5f;
 
     [Header("Interaction")]
     [SerializeField] private string interactPrompt = "E for Climb Down";
@@ -33,7 +33,6 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
     private Quaternion closedLocalRotation;
     private Quaternion openLocalRotation;
-    private Coroutine autoCloseCoroutine;
     private int playerInsideCount = 0;
     private Collider _doorCollider;
 
@@ -71,24 +70,18 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
     private void OnPlayerReleasedLadderAtBoundary()
     {
-        if (currentState == DoorState.Closed)
-            StartCoroutine(OpenDoorOnlyRoutine());
+        if (currentState == DoorState.Open)
+            StartCoroutine(CloseRoutine());
     }
 
     public void OnPlayerEnterDetectionZone()
     {
         playerInsideCount++;
-        CancelAutoClose();
     }
 
     public void OnPlayerExitDetectionZone()
     {
         playerInsideCount = Mathf.Max(0, playerInsideCount - 1);
-
-        if (playerInsideCount == 0 && currentState == DoorState.Open && autoCloseDelay > 0f)
-        {
-            autoCloseCoroutine = StartCoroutine(AutoCloseCountdown());
-        }
     }
 
     public string GetInteractText()
@@ -133,15 +126,6 @@ public class TrapDoorController : MonoBehaviour, IInteractable
         StartCoroutine(OpenAndClimbRoutine());
     }
 
-    private void CancelAutoClose()
-    {
-        if (autoCloseCoroutine != null)
-        {
-            StopCoroutine(autoCloseCoroutine);
-            autoCloseCoroutine = null;
-        }
-    }
-
     private IEnumerator OpenAndClimbRoutine()
     {
         currentState = DoorState.Opening;
@@ -172,42 +156,6 @@ public class TrapDoorController : MonoBehaviour, IInteractable
             float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : topGrabTarget.position.y - 3f;
             playerMovement.ForceStartClimbing(topGrabTarget.position, -topGrabTarget.forward, bottomY, -1);
         }
-
-        if (playerInsideCount == 0 && autoCloseDelay > 0f)
-        {
-            autoCloseCoroutine = StartCoroutine(AutoCloseCountdown());
-        }
-    }
-
-    private IEnumerator OpenDoorOnlyRoutine()
-    {
-        currentState = DoorState.Opening;
-
-        if (_doorCollider != null)
-            _doorCollider.enabled = false;
-
-        if (audioSource != null && openSound != null)
-            audioSource.PlayOneShot(openSound);
-
-        float elapsed = 0f;
-        Quaternion startRot = doorMeshTransform.localRotation;
-
-        while (elapsed < openDuration)
-        {
-            float t = elapsed / openDuration;
-            t = SmoothProgress(t);
-            doorMeshTransform.localRotation = Quaternion.Slerp(startRot, openLocalRotation, t);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        doorMeshTransform.localRotation = openLocalRotation;
-        currentState = DoorState.Open;
-
-        if (playerInsideCount == 0 && autoCloseDelay > 0f)
-        {
-            autoCloseCoroutine = StartCoroutine(AutoCloseCountdown());
-        }
     }
 
     private IEnumerator CloseRoutine()
@@ -234,23 +182,6 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
         if (_doorCollider != null)
             _doorCollider.enabled = true;
-    }
-
-    private IEnumerator AutoCloseCountdown()
-    {
-        float remaining = autoCloseDelay;
-
-        while (remaining > 0f)
-        {
-            if (playerInsideCount > 0)
-                yield break;
-
-            yield return null;
-            remaining -= Time.deltaTime;
-        }
-
-        if (currentState == DoorState.Open && playerInsideCount == 0)
-            StartCoroutine(CloseRoutine());
     }
 
     private float SmoothProgress(float t)
