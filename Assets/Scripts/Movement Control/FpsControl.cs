@@ -55,11 +55,15 @@ public class FPSMovement : MonoBehaviour
     private float _swingTimer;
     private float _swingRollOffset;
     private float _climbDistanceTraveled;
-    private float _climbDismountBoundaryY;
+    private float _climbTopY;
+    private float _climbBottomY;
     private int _climbDirection;
     private bool _hasReachedBoundary;
+    private bool _isAtEndBoundary;
     private float _climbFloorY;
     private bool _isReleasing;
+    private float _climbStartBoundaryY;
+    private float _climbingStuckFrames;
 
     public System.Action OnLadderReleaseAtBoundary;
 
@@ -131,10 +135,52 @@ public class FPSMovement : MonoBehaviour
             {
                 if (climbPromptPanel != null) climbPromptPanel.SetActive(true);
                 if (climbPromptText != null) climbPromptText.text = letGoPrompt;
+
                 if (Input.GetKeyDown(KeyCode.E))
                 {
-                    ReleaseLadder();
+                    if (!_isAtEndBoundary)
+                    {
+                        _hasReachedBoundary = false;
+                        OnLadderReleaseAtBoundary?.Invoke();
+
+                        Vector3 targetPos = transform.position;
+                        targetPos.y = _climbStartBoundaryY + (_climbDirection > 0 ? -1.6f : 1.0f);
+                        if (_ladderGrabDirection.magnitude > 0.01f)
+                        {
+                            float dirSign = _climbDirection < 0 ? 1f : -1f;
+                            float forwardPush = _climbDirection < 0 ? 1.0f : 1.2f;
+                            targetPos += _ladderGrabDirection * dirSign * forwardPush;
+                            Vector3 right = Vector3.Cross(Vector3.up, _ladderGrabDirection).normalized;
+                            targetPos += right * 0.4f;
+                        }
+                        StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
+                    }
+                    else
+                    {
+                        ReleaseLadder();
+                    }
+
                     if (climbPromptPanel != null) climbPromptPanel.SetActive(false);
+                }
+                else
+                {
+                    float vertical = 0f;
+                    if (Input.GetKey(KeyCode.W)) vertical = 1f;
+                    else if (Input.GetKey(KeyCode.S)) vertical = -1f;
+
+                    if (vertical != 0)
+                    {
+                        bool pressingOppositeDirection = _isAtEndBoundary && vertical * _climbDirection < 0;
+                        bool willClear = !_isAtEndBoundary || pressingOppositeDirection;
+                        if (willClear)
+                        {
+                            _hasReachedBoundary = false;
+                            _isAtEndBoundary = false;
+                            _climbDirection = Mathf.RoundToInt(vertical);
+                            _currentClimbSpeed = vertical * climbSpeed;
+                            _characterController.Move(_ladderGrabDirection * _currentClimbSpeed * Time.deltaTime);
+                        }
+                    }
                 }
             }
             else
@@ -157,13 +203,13 @@ public class FPSMovement : MonoBehaviour
         _moveInput = context.ReadValue<Vector2>();
     }
 
-    public void ForceStartClimbing(Vector3 targetPosition, Vector3 grabDirection, float dismountBoundaryY, int climbDirection)
+    public void ForceStartClimbing(Vector3 targetPosition, Vector3 grabDirection, float topBoundaryY, float bottomBoundaryY, int climbDirection, bool rotateDuringGrab = true)
     {
         if (_isClimbing || _isReleasing) return;
-        StartCoroutine(SmoothGrabCoroutine(targetPosition, grabDirection, dismountBoundaryY, climbDirection));
+        StartCoroutine(SmoothGrabCoroutine(targetPosition, grabDirection, topBoundaryY, bottomBoundaryY, climbDirection, rotateDuringGrab));
     }
 
-    private System.Collections.IEnumerator SmoothGrabCoroutine(Vector3 targetPos, Vector3 grabDir, float boundaryY, int dir)
+    private System.Collections.IEnumerator SmoothGrabCoroutine(Vector3 targetPos, Vector3 grabDir, float topBoundaryY, float bottomBoundaryY, int dir, bool rotateDuringGrab)
     {
         _isReleasing = true;
 
@@ -171,7 +217,7 @@ public class FPSMovement : MonoBehaviour
         Quaternion startRot = transform.rotation;
 
         Quaternion targetRot = startRot;
-        if (grabDir.magnitude > 0.01f)
+        if (rotateDuringGrab && grabDir.magnitude > 0.01f)
         {
             Vector3 dirVec = grabDir;
             dirVec.y = 0;
@@ -181,6 +227,19 @@ public class FPSMovement : MonoBehaviour
 
         float duration = 3.5f;
         float elapsed = 0f;
+
+        float startPan = 0f;
+        float startTilt = 0f;
+        CinemachinePanTilt panTilt = null;
+        if (cameraTransform != null)
+        {
+            panTilt = cameraTransform.GetComponent<CinemachinePanTilt>();
+            if (panTilt != null)
+            {
+                startPan = panTilt.PanAxis.Value;
+                startTilt = panTilt.TiltAxis.Value;
+            }
+        }
 
         while (elapsed < duration)
         {
@@ -193,6 +252,12 @@ public class FPSMovement : MonoBehaviour
             transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
             _characterController.enabled = true;
 
+            if (panTilt != null)
+            {
+                panTilt.PanAxis.Value = Mathf.Lerp(startPan, 0f, t);
+                panTilt.TiltAxis.Value = Mathf.Lerp(startTilt, 0f, t);
+            }
+
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -200,22 +265,33 @@ public class FPSMovement : MonoBehaviour
         _characterController.enabled = false;
         transform.position = targetPos;
         transform.rotation = targetRot;
+        if (panTilt != null)
+        {
+            panTilt.PanAxis.Value = 0f;
+            panTilt.TiltAxis.Value = 0f;
+        }
         _characterController.enabled = true;
+        _characterController.Move(Vector3.zero);
 
         _isClimbing = true;
         _ladderGrabDirection = grabDir;
         _ladderGrabDirection.y = 0;
         if (_ladderGrabDirection.magnitude > 0.01f)
             _ladderGrabDirection.Normalize();
+
         _verticalVelocity = 0;
         _climbBobTimer = 0f;
         _currentClimbSpeed = 0f;
         _swingTimer = 0f;
         _swingRollOffset = 0f;
         _climbDistanceTraveled = 0f;
-        _climbDismountBoundaryY = boundaryY;
+        _climbTopY = topBoundaryY;
+        _climbBottomY = bottomBoundaryY;
         _climbDirection = dir;
-        _hasReachedBoundary = false;
+        _climbStartBoundaryY = transform.position.y;
+        _isAtEndBoundary = false;
+        _hasReachedBoundary = true;
+        _climbingStuckFrames = 0;
 
         if (_mainCameraComponent != null)
             _mainCameraComponent.fieldOfView = _baseFov + 5f;
@@ -255,6 +331,14 @@ public class FPSMovement : MonoBehaviour
         if (_hasReachedBoundary)
         {
             _currentClimbSpeed = 0;
+            _targetDutch = Mathf.Lerp(_targetDutch, 0f, Time.deltaTime * 6f);
+            if (_mainCameraTransform != null)
+            {
+                Vector3 camPos = _mainCameraTransform.localPosition;
+                camPos.x = Mathf.Lerp(camPos.x, _baseCameraX, Time.deltaTime * 3f);
+                _mainCameraTransform.localPosition = camPos;
+                _swingRollOffset = Mathf.Lerp(_swingRollOffset, 0f, Time.deltaTime * 3f);
+            }
             return;
         }
 
@@ -262,33 +346,19 @@ public class FPSMovement : MonoBehaviour
         if (Input.GetKey(KeyCode.W)) vertical = 1f;
         else if (Input.GetKey(KeyCode.S)) vertical = -1f;
 
-        _currentClimbSpeed = Mathf.Lerp(_currentClimbSpeed, vertical * climbSpeed, Time.deltaTime * climbAcceleration);
-
-        float nextY = transform.position.y + _currentClimbSpeed * Time.deltaTime;
-        if (_climbDirection > 0 && nextY >= _climbDismountBoundaryY)
+        if (vertical != 0 && Mathf.Abs(_currentClimbSpeed) < 0.001f)
         {
-            if (_climbFloorY <= 0f)
-                _climbFloorY = _climbDismountBoundaryY + _characterController.height + _characterController.skinWidth * 2f;
-            Vector3 clampedPos = transform.position;
-            clampedPos.y = _climbDismountBoundaryY;
-            transform.position = clampedPos;
-            _currentClimbSpeed = 0;
-            _hasReachedBoundary = true;
-            return;
+            float minSpeedForMove = 0.001f / Mathf.Max(Time.deltaTime, 0.0001f);
+            _currentClimbSpeed = vertical * Mathf.Max(climbSpeed * 0.5f, minSpeedForMove);
         }
-        if (_climbDirection < 0 && nextY <= _climbDismountBoundaryY)
-        {
-            Vector3 clampedPos = transform.position;
-            clampedPos.y = _climbDismountBoundaryY;
-            transform.position = clampedPos;
-            _currentClimbSpeed = 0;
-            _hasReachedBoundary = true;
-            return;
-        }
+        else
+            _currentClimbSpeed = Mathf.Lerp(_currentClimbSpeed, vertical * climbSpeed, Time.deltaTime * climbAcceleration);
 
         Vector3 move = new Vector3(0, _currentClimbSpeed, 0);
+        float startY = transform.position.y;
         CollisionFlags flags = _characterController.Move(move * Time.deltaTime);
 
+        float actualDY = transform.position.y - startY;
         _climbDistanceTraveled += Mathf.Abs(_currentClimbSpeed * Time.deltaTime);
         if (_climbDistanceTraveled >= stepInterval && Mathf.Abs(vertical) > 0.1f)
         {
@@ -303,8 +373,8 @@ public class FPSMovement : MonoBehaviour
             _swingRollOffset = Mathf.Sin(_swingTimer * 0.7f) * climbSwingRoll;
 
             Vector3 camPos = _mainCameraTransform.localPosition;
-            camPos.x = _baseCameraX + swingX;
-            camPos.y = _baseCameraY;
+            camPos.x = Mathf.Lerp(camPos.x, _baseCameraX + swingX, Time.deltaTime * 6f);
+            camPos.y = Mathf.Lerp(camPos.y, _baseCameraY, Time.deltaTime * 6f);
             _mainCameraTransform.localPosition = camPos;
         }
         else
@@ -318,7 +388,7 @@ public class FPSMovement : MonoBehaviour
         _climbBobTimer += Time.deltaTime * climbBobFrequency;
         float bob = Mathf.Sin(_climbBobTimer) * climbBobAmplitude;
         Vector3 pos = _mainCameraTransform.localPosition;
-        pos.y = _baseCameraY + bob;
+        pos.y = Mathf.Lerp(pos.y, _baseCameraY + bob, Time.deltaTime * 6f);
         _mainCameraTransform.localPosition = pos;
 
         _targetDutch = _swingRollOffset;
@@ -329,12 +399,49 @@ public class FPSMovement : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, face, Time.deltaTime * 5f);
         }
 
-        if ((flags & CollisionFlags.Above) != 0 && _climbDirection > 0)
+        if ((flags & CollisionFlags.Above) != 0)
         {
             _climbFloorY = transform.position.y + _characterController.height + _characterController.skinWidth * 2f;
             _hasReachedBoundary = true;
+            _isAtEndBoundary = true;
             _currentClimbSpeed = 0;
+            _targetDutch = 0;
             return;
+        }
+
+        if ((flags & CollisionFlags.Below) != 0)
+        {
+            _hasReachedBoundary = true;
+            _isAtEndBoundary = true;
+            _currentClimbSpeed = 0;
+            _targetDutch = 0;
+            return;
+        }
+
+        if (vertical != 0 && Mathf.Abs(actualDY) < 0.0001f)
+        {
+            _climbingStuckFrames++;
+            if (_climbingStuckFrames >= 3)
+            {
+                _climbingStuckFrames = 0;
+                _currentClimbSpeed = 0;
+            }
+        }
+        else
+        {
+            _climbingStuckFrames = 0;
+        }
+    }
+
+    private void ResetClimbCamera()
+    {
+        _swingRollOffset = 0f;
+        if (_mainCameraTransform != null)
+        {
+            Vector3 pos = _mainCameraTransform.localPosition;
+            pos.x = _baseCameraX;
+            pos.y = _baseCameraY;
+            _mainCameraTransform.localPosition = pos;
         }
     }
 
@@ -352,6 +459,7 @@ public class FPSMovement : MonoBehaviour
     {
         _isClimbing = false;
         _hasReachedBoundary = false;
+        _isAtEndBoundary = false;
 
         if (climbPromptPanel != null) climbPromptPanel.SetActive(false);
 
@@ -382,6 +490,7 @@ public class FPSMovement : MonoBehaviour
     }
 
     public bool IsClimbing() => _isClimbing;
+    public bool IsTransitioningToLadder() => _isReleasing;
     public bool HasReachedBoundary() => _hasReachedBoundary;
     public string GetClimbReleasePrompt() => _hasReachedBoundary ? letGoPrompt : "";
     public void ReleaseLadder()
@@ -391,21 +500,29 @@ public class FPSMovement : MonoBehaviour
             _hasReachedBoundary = false;
             OnLadderReleaseAtBoundary?.Invoke();
 
-            if (_climbDirection > 0)
+            float midY = (_climbTopY + _climbBottomY) * 0.5f;
+            if (transform.position.y >= midY)
             {
                 Vector3 targetPos = transform.position;
-                targetPos.y = _climbDismountBoundaryY + 1.6f;
+                if (_climbTopY > 0f)
+                    targetPos.y = _climbTopY + 1.7f;
                 if (_ladderGrabDirection.magnitude > 0.01f)
                 {
-                    targetPos += _ladderGrabDirection * 0.4f;
+                    targetPos += _ladderGrabDirection * 0.5f;
                     Vector3 right = Vector3.Cross(Vector3.up, _ladderGrabDirection).normalized;
-                    targetPos += right * -0.2f;
+                    targetPos += right * 0.3f;
                 }
-                StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f));
+                StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
             }
             else
             {
-                StopClimbing();
+                Vector3 targetPos = transform.position;
+                targetPos.y = transform.position.y;
+                if (_ladderGrabDirection.magnitude > 0.01f)
+                {
+                    targetPos -= _ladderGrabDirection * 0.8f;
+                }
+                StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
             }
         }
         else if (_isClimbing)
@@ -414,33 +531,77 @@ public class FPSMovement : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator SmoothReleaseToFloor(Vector3 targetPos, float duration)
+    private System.Collections.IEnumerator SmoothReleaseToFloor(Vector3 targetPos, float duration, bool rotateToLadder)
     {
         _isReleasing = true;
         _currentClimbSpeed = 0;
 
         Vector3 startPos = transform.position;
-        float elapsed = 0f;
+        Quaternion startRot = transform.rotation;
+        Quaternion targetRot = startRot;
+        if (rotateToLadder && _ladderGrabDirection.magnitude > 0.01f)
+        {
+            Vector3 faceDir = -_ladderGrabDirection;
+            faceDir.y = 0;
+            if (faceDir.magnitude > 0.01f)
+                targetRot = Quaternion.LookRotation(faceDir.normalized);
+        }
 
+        float startFov = _mainCameraComponent != null ? _mainCameraComponent.fieldOfView : _baseFov;
+        float startCamX = _mainCameraTransform != null ? _mainCameraTransform.localPosition.x : _baseCameraX;
+        float startCamY = _mainCameraTransform != null ? _mainCameraTransform.localPosition.y : _baseCameraY;
+        float startDutch = _targetDutch;
+
+        _characterController.enabled = false;
+
+        float elapsed = 0f;
         while (elapsed < duration)
         {
             float t = elapsed / duration;
             t = t * t * (3f - 2f * t);
 
-            Vector3 pos = Vector3.Lerp(startPos, targetPos, t);
-            _characterController.enabled = false;
-            transform.position = pos;
-            _characterController.enabled = true;
+            transform.position = Vector3.Lerp(startPos, targetPos, t);
+            transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
+
+            if (_mainCameraComponent != null)
+                _mainCameraComponent.fieldOfView = Mathf.Lerp(startFov, _baseFov, t);
+            if (_mainCameraTransform != null)
+            {
+                Vector3 camPos = _mainCameraTransform.localPosition;
+                camPos.x = Mathf.Lerp(startCamX, _baseCameraX, t);
+                camPos.y = Mathf.Lerp(startCamY, _baseCameraY, t);
+                _mainCameraTransform.localPosition = camPos;
+            }
+            _targetDutch = Mathf.Lerp(startDutch, 0f, t);
 
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        _characterController.enabled = false;
         transform.position = targetPos;
+        transform.rotation = targetRot;
         _characterController.enabled = true;
+        _characterController.Move(Vector3.zero);
+        yield return null;
+
+        if (_mainCameraComponent != null)
+            _mainCameraComponent.fieldOfView = _baseFov;
+        if (_mainCameraTransform != null)
+        {
+            Vector3 camPos = _mainCameraTransform.localPosition;
+            camPos.x = _baseCameraX;
+            camPos.y = _baseCameraY;
+            _mainCameraTransform.localPosition = camPos;
+        }
+        _targetDutch = 0f;
 
         _isReleasing = false;
         StopClimbing();
+    }
+
+    public void StartLadderClimb(Vector3 grabPosition, Vector3 grabDirection, float topBoundaryY, float bottomBoundaryY, bool fromTop)
+    {
+        int climbDirection = fromTop ? -1 : 1;
+        ForceStartClimbing(grabPosition, grabDirection, topBoundaryY, bottomBoundaryY, climbDirection, fromTop);
     }
 }

@@ -22,6 +22,7 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     [SerializeField] private FPSMovement playerMovement;
     [SerializeField] private Transform topGrabTarget;
     [SerializeField] private Transform bottomGrabTarget;
+    [SerializeField] private float grabDirectionAngleOffset;
 
     [Header("Audio")]
     [SerializeField] private AudioSource audioSource;
@@ -114,10 +115,32 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     {
         if (topGrabTarget != null && playerMovement != null)
         {
+            float topY = topGrabTarget.position.y;
             float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : topGrabTarget.position.y - 3f;
-            playerMovement.ForceStartClimbing(topGrabTarget.position, -topGrabTarget.forward, bottomY, -1);
+            Vector3 dir = bottomGrabTarget.forward;
+            dir.y = 0;
+            if (dir.magnitude > 0.01f) dir.Normalize();
+            else dir = -topGrabTarget.forward;
+            if (Mathf.Abs(grabDirectionAngleOffset) > 0.01f)
+                dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
+            playerMovement.ForceStartClimbing(topGrabTarget.position, dir, topY, bottomY, -1);
         }
         yield break;
+    }
+
+    public void StartClimbFromBottom()
+    {
+        if (playerMovement == null || bottomGrabTarget == null) return;
+        if (playerMovement.IsClimbing() || playerMovement.IsTransitioningToLadder()) return;
+
+        Vector3 dir = bottomGrabTarget.forward;
+        dir.y = 0;
+        if (dir.magnitude > 0.01f) dir.Normalize();
+        if (Mathf.Abs(grabDirectionAngleOffset) > 0.01f)
+            dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
+        float topY = topGrabTarget != null ? topGrabTarget.position.y : bottomGrabTarget.position.y + 3f;
+        float bottomY = bottomGrabTarget.position.y;
+        playerMovement.ForceStartClimbing(bottomGrabTarget.position, dir, topY, bottomY, 1, false);
     }
 
     public void TryOpen()
@@ -153,8 +176,15 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
         if (topGrabTarget != null && playerMovement != null)
         {
+            float topY = topGrabTarget.position.y;
             float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : topGrabTarget.position.y - 3f;
-            playerMovement.ForceStartClimbing(topGrabTarget.position, -topGrabTarget.forward, bottomY, -1);
+            Vector3 dir = bottomGrabTarget.forward;
+            dir.y = 0;
+            if (dir.magnitude > 0.01f) dir.Normalize();
+            else dir = -topGrabTarget.forward;
+            if (Mathf.Abs(grabDirectionAngleOffset) > 0.01f)
+                dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
+            playerMovement.ForceStartClimbing(topGrabTarget.position, dir, topY, bottomY, -1);
         }
     }
 
