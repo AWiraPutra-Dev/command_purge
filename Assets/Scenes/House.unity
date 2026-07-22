@@ -119,6 +119,24 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &14429288 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4553224583308261355, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+  m_PrefabInstance: {fileID: 2597832289427952631}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &14429294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 14429288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c8a357e50a048441bcb918e4105d741, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SurfaceDefinition
+  surfaceType: 1
 --- !u!1 &282057169 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5145678617399649625, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
@@ -135,6 +153,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+--- !u!1 &897643336 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5769132423104870829, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+  m_PrefabInstance: {fileID: 2597832289427952631}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &897643341
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 897643336}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c8a357e50a048441bcb918e4105d741, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SurfaceDefinition
+  surfaceType: 1
 --- !u!1 &1601148421
 GameObject:
   m_ObjectHideFlags: 0
@@ -219,6 +255,35 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8727071213613539432, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
   m_PrefabInstance: {fileID: 2597832289427952631}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1849913566 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6512699975702126445, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+  m_PrefabInstance: {fileID: 2597832289427952631}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e339d8ddfa59cca4bba3e18781934279, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FPSMovement
+--- !u!1 &1986167262 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3704627667031752534, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+  m_PrefabInstance: {fileID: 2597832289427952631}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1986167267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1986167262}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c8a357e50a048441bcb918e4105d741, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SurfaceDefinition
+  surfaceType: 3
 --- !u!4 &2007411551 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3465377741653353336, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
@@ -241,6 +306,10 @@ PrefabInstance:
       value: 0.6000004
       objectReference: {fileID: 0}
     - target: {fileID: 243338027351879991, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 243338027351879991, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
       propertyPath: m_LocalRotation.w
       value: 0.35291797
       objectReference: {fileID: 0}
@@ -256,6 +325,18 @@ PrefabInstance:
       propertyPath: m_LocalRotation.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1072490120431184936, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      propertyPath: walkFrequency
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1072490120431184936, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      propertyPath: walkPosAmplitude
+      value: 0.015
+      objectReference: {fileID: 0}
+    - target: {fileID: 1695429271696371301, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      propertyPath: fpsMovement
+      value: 
+      objectReference: {fileID: 1849913566}
     - target: {fileID: 3465377741653353336, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.1236
@@ -407,7 +488,16 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5769132423104870829, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 897643341}
+    - targetCorrespondingSourceObject: {fileID: 4553224583308261355, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 14429294}
+    - targetCorrespondingSourceObject: {fileID: 3704627667031752534, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1986167267}
   m_SourcePrefab: {fileID: 100100000, guid: 336b47dbaa0fc6444bc7554122d6f6ee, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

@@ -63,6 +63,7 @@ public class FPSMovement : MonoBehaviour
     private float _climbFloorY;
     private bool _isReleasing;
     private float _climbStartBoundaryY;
+    private Vector3 _preGrabPosition;
     private float _climbingStuckFrames;
     private bool _hasPassedMidpoint;
 
@@ -152,17 +153,7 @@ public class FPSMovement : MonoBehaviour
                         _hasReachedBoundary = false;
                         OnLadderReleaseAtBoundary?.Invoke();
 
-                        Vector3 targetPos = transform.position;
-                        targetPos.y = _climbStartBoundaryY + (_climbDirection > 0 ? -1.6f : 1.0f);
-                        if (_ladderGrabDirection.magnitude > 0.01f)
-                        {
-                            float dirSign = _climbDirection < 0 ? 1f : -1f;
-                            float forwardPush = _climbDirection < 0 ? 1.0f : 1.2f;
-                            targetPos += _ladderGrabDirection * dirSign * forwardPush;
-                            Vector3 right = Vector3.Cross(Vector3.up, _ladderGrabDirection).normalized;
-                            targetPos += right * 0.4f;
-                        }
-                        StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
+                        StartCoroutine(SmoothReleaseToFloor(_preGrabPosition, 1.5f, false));
                     }
                     else
                     {
@@ -223,6 +214,7 @@ public class FPSMovement : MonoBehaviour
         _isReleasing = true;
 
         Vector3 startPos = transform.position;
+        _preGrabPosition = startPos;
         Quaternion startRot = transform.rotation;
 
         Quaternion targetRot = startRot;
@@ -250,6 +242,10 @@ public class FPSMovement : MonoBehaviour
             }
         }
 
+        float startFov = _mainCameraComponent != null ? _mainCameraComponent.fieldOfView : _baseFov;
+        float startCamX = _mainCameraTransform != null ? _mainCameraTransform.localPosition.x : _baseCameraX;
+        float startCamY = _mainCameraTransform != null ? _mainCameraTransform.localPosition.y : _baseCameraY;
+
         while (elapsed < duration)
         {
             float t = elapsed / duration;
@@ -265,6 +261,17 @@ public class FPSMovement : MonoBehaviour
             {
                 panTilt.PanAxis.Value = Mathf.Lerp(startPan, 0f, t);
                 panTilt.TiltAxis.Value = Mathf.Lerp(startTilt, 0f, t);
+            }
+
+            if (_mainCameraComponent != null)
+                _mainCameraComponent.fieldOfView = Mathf.Lerp(startFov, _baseFov + 5f, t);
+
+            if (_mainCameraTransform != null)
+            {
+                Vector3 camPos = _mainCameraTransform.localPosition;
+                camPos.x = Mathf.Lerp(startCamX, _baseCameraX, t);
+                camPos.y = Mathf.Lerp(startCamY, _baseCameraY, t);
+                _mainCameraTransform.localPosition = camPos;
             }
 
             elapsed += Time.deltaTime;
@@ -553,10 +560,10 @@ public class FPSMovement : MonoBehaviour
             _hasReachedBoundary = false;
             OnLadderReleaseAtBoundary?.Invoke();
 
-            float midY = (_climbTopY + _climbBottomY) * 0.5f;
-            if (transform.position.y >= midY)
+            Vector3 targetPos = transform.position;
+
+            if (_climbDirection == 1)
             {
-                Vector3 targetPos = transform.position;
                 if (_climbTopY > 0f)
                     targetPos.y = _climbTopY + 1.7f;
                 if (_ladderGrabDirection.magnitude > 0.01f)
@@ -565,18 +572,17 @@ public class FPSMovement : MonoBehaviour
                     Vector3 right = Vector3.Cross(Vector3.up, _ladderGrabDirection).normalized;
                     targetPos += right * 0.3f;
                 }
-                StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
             }
             else
             {
-                Vector3 targetPos = transform.position;
                 targetPos.y = transform.position.y;
                 if (_ladderGrabDirection.magnitude > 0.01f)
                 {
                     targetPos -= _ladderGrabDirection * 0.8f;
                 }
-                StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
             }
+
+            StartCoroutine(SmoothReleaseToFloor(targetPos, 1.5f, false));
         }
         else if (_isClimbing)
         {
