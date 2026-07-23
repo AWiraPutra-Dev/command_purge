@@ -1,7 +1,10 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 public class TerminalController : MonoBehaviour
 {
@@ -64,21 +67,50 @@ public class TerminalController : MonoBehaviour
 
     public float GetPrintDuration() => Mathf.Max(0.1f, loadingDuration);
 
-    [Header("Type Test Panel — robot check")]
+    [Header("Type Test Panel — robot check, ghost text ala web typing-test")]
     [SerializeField] private GameObject typeTestPanelObject;
     [SerializeField] private TMP_Text   typeTestPromptTextComponent;
+    [Tooltip("TMP_Text buat nampilin target teks dengan warna per-karakter (benar/salah/belum diketik).")]
+    [SerializeField] private TMP_Text   typeTestGhostTextComponent;
+    [SerializeField] private Color typeTestPendingColorValue = new Color(0.35f, 0.42f, 0.35f);
+    [SerializeField] private Color typeTestCorrectColorValue = new Color(0.35f, 0.85f, 0.35f);
+    [SerializeField] private Color typeTestWrongColorValue   = new Color(0.85f, 0.25f, 0.25f);
+
+    private string typeTestTargetPhrase = "";
 
     [Header("Folder Notification — tanda kasus baru")]
     [SerializeField] private GameObject folderNotificationObject;
 
     [Header("Ask / Info / Check Panel — menu utama investigasi")]
     [SerializeField] private GameObject askInfoCheckPanelObject;
-    [SerializeField] private TMP_Text   askInfoCheckTextComponent;
+    [SerializeField] private TMP_Text   askInfoCheckTitleText;
+    [SerializeField] private TMP_Text   askInfoCheckActionsText;
+    [SerializeField] private TMP_Text   askInfoCheckVerdictText;
+    [SerializeField] private TMP_Text   askInfoCheckHintText;
     [SerializeField] private Image      askInfoCheckPhotoImage;
+
+    [Header("Ask Question List Panel — dedicated panel baru, replace AskInfoCheck saat 'ask'")]
+    [SerializeField] private GameObject askQuestionListPanelObject;
+    [SerializeField] private TMP_Text   askQuestionListTitleText;
+    [SerializeField] private Transform  askQuestionListContainer;
+    [SerializeField] private GameObject askQuestionItemPrefab;
+    [SerializeField] private TMP_Text   askQuestionResponseText;
+
+    [Header("Traits Panel — kriteria anomali, SCALABLE, prefab di-instantiate, reveal satu-satu")]
+    [SerializeField] private GameObject traitsPanelObject;
+    [SerializeField] private Transform  traitsListContainer;
+    [SerializeField] private GameObject traitsItemPrefab;
 
     [Header("Verdict Panel — hasil approved / denied")]
     [SerializeField] private GameObject verdictPanelObject;
     [SerializeField] private TMP_Text   verdictTextComponent;
+
+    [Header("Staggered Reveal — buat boot text & list dinamis (traits/ask)")]
+    [Tooltip("Opsional. Kalau kosong, reveal tetap jalan tanpa suara.")]
+    [SerializeField] private AudioSource sfxAudioSourceComponent;
+    [SerializeField] private AudioClip   revealTingClip;
+    [SerializeField] private AudioClip   notificationSfxClip;
+    [SerializeField] private float       revealStaggerDelay = 0.12f;
 
     [Header("Line Prefab")]
     [SerializeField] private GameObject terminalLinePrefabGameObject;
@@ -117,6 +149,57 @@ public class TerminalController : MonoBehaviour
         commandProcessorService = new CommandProcessorService(HandleNewLineAdded);
         commandProcessorService.OnSubjectPhotoChanged += HandleSubjectPhotoChanged;
         commandProcessorService.SetSubjectDefinitionList(subjectDefinitionList);
+
+        if (playerInputFieldComponent != null)
+            playerInputFieldComponent.onValueChanged.AddListener(HandleInputValueChangedForTypeTest);
+
+        SetupAutoRefocus();
+
+        // Auto-refocus: klik di panel manapun → balik ke terminal input
+        AddClickRefocus(askInfoCheckPanelObject);
+        AddClickRefocus(dataPanelObject);
+        AddClickRefocus(inspectPanelObject);
+        AddClickRefocus(traitsPanelObject);
+        AddClickRefocus(verdictPanelObject);
+        AddClickRefocus(typeTestPanelObject);
+        AddClickRefocus(confirmPanelObject);
+        AddClickRefocus(folderNotificationObject);
+        AddClickRefocus(photoSelectionPanelObject);
+        AddClickRefocus(iyaTidakPanelObject);
+        AddClickRefocus(loadingPanelObject);
+        AddClickRefocus(askQuestionListPanelObject);
+    }
+
+    // OPSI A: klik di manapun (panel/UI/layar) → fokus otomatis balik ke terminal,
+    // biar player gak kehilangan kemampuan ngetik gara-gara klik UI.
+    private void SetupAutoRefocus()
+    {
+        Canvas rootCanvas = GetComponentInParent<Canvas>();
+        if (rootCanvas == null) return;
+
+        EventTrigger trigger = rootCanvas.gameObject.GetComponent<EventTrigger>();
+        if (trigger == null)
+            trigger = rootCanvas.gameObject.AddComponent<EventTrigger>();
+
+        EventTrigger.Entry entry = new EventTrigger.Entry();
+        entry.eventID = EventTriggerType.PointerClick;
+        entry.callback.AddListener((data) => FocusInputField());
+        trigger.triggers.Add(entry);
+    }
+
+    // TAMBAHAN: klik di panel manapun → fokus balik ke terminal input.
+    // Dipanggil di Awake() untuk semua panel aktif.
+    private void AddClickRefocus(GameObject panel)
+    {
+        if (panel == null) return;
+        EventTrigger trigger = panel.GetComponent<EventTrigger>();
+        if (trigger == null)
+            trigger = panel.AddComponent<EventTrigger>();
+
+        EventTrigger.Entry entry = new EventTrigger.Entry();
+        entry.eventID = EventTriggerType.PointerClick;
+        entry.callback.AddListener((data) => FocusInputField());
+        trigger.triggers.Add(entry);
     }
 
     private void Start()
@@ -135,9 +218,35 @@ public class TerminalController : MonoBehaviour
         commandProcessorService.SetSubjectPhoto("S-0044", subject0044Photo);
     }
 
+    private void Update()
+    {
+        KeepInputFieldFocused();
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus)
+        {
+            KeepInputFieldFocused();
+        }
+    }
+
+    public void KeepInputFieldFocused()
+    {
+        if (inputBlocked) return;
+        if (playerInputFieldComponent == null) return;
+
+        if (!playerInputFieldComponent.isFocused)
+        {
+            playerInputFieldComponent.ActivateInputField();
+        }
+    }
+
     private void OnDestroy()
     {
         playerInputFieldComponent.onSubmit.RemoveListener(HandlePlayerSubmittedInput);
+        if (playerInputFieldComponent != null)
+            playerInputFieldComponent.onValueChanged.RemoveListener(HandleInputValueChangedForTypeTest);
         if (commandProcessorService != null)
             commandProcessorService.OnSubjectPhotoChanged -= HandleSubjectPhotoChanged;
     }
@@ -173,6 +282,8 @@ public class TerminalController : MonoBehaviour
         if (typeTestPanelObject      != null) typeTestPanelObject.SetActive(false);
         if (folderNotificationObject  != null) folderNotificationObject.SetActive(false);
         if (askInfoCheckPanelObject   != null) askInfoCheckPanelObject.SetActive(false);
+        if (askQuestionListPanelObject != null) askQuestionListPanelObject.SetActive(false);
+        if (traitsPanelObject         != null) traitsPanelObject.SetActive(false);
         if (verdictPanelObject        != null) verdictPanelObject.SetActive(false);
     }
 
@@ -269,11 +380,26 @@ public class TerminalController : MonoBehaviour
     }
 
     // ═══════════════════════════════════════════════
-    // DATA PANEL
+    // DATA PANEL (INFO MODE) — disamakan dengan tema ASK (foto & panel background tetap aktif)
     // ═══════════════════════════════════════════════
     public void ShowDataPanel(SubjectDataModel subject)
     {
         HideAllTutorialPanels();
+
+        // Pastikan AskInfoCheck panel tetap aktif (foto subjek di background tetap terlihat)
+        if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
+
+        Sprite photo = (subject != null && subject.subjectPhoto != null)
+            ? subject.subjectPhoto
+            : GetSubjectPhotoById(subject?.subjectIdString);
+        SetAskInfoCheckPhoto(photo);
+
+        // Sembunyikan teks bawaan AskInfoCheck agar tidak bertumpuk dengan DataPanel
+        if (askInfoCheckTitleText   != null) askInfoCheckTitleText.gameObject.SetActive(false);
+        if (askInfoCheckActionsText != null) askInfoCheckActionsText.gameObject.SetActive(false);
+        if (askInfoCheckVerdictText != null) askInfoCheckVerdictText.gameObject.SetActive(false);
+        if (askInfoCheckHintText    != null) askInfoCheckHintText.gameObject.SetActive(false);
+
         if (dataPanelObject != null) dataPanelObject.SetActive(true);
 
         if (dataIdTextComponent      != null) dataIdTextComponent.text     = "ID       : " + (subject != null ? subject.subjectIdString    : "---");
@@ -286,6 +412,21 @@ public class TerminalController : MonoBehaviour
     public void HideDataPanel()
     {
         if (dataPanelObject != null) dataPanelObject.SetActive(false);
+
+        // Munculkan kembali teks bawaan AskInfoCheck jika kembali ke menu utama
+        if (askInfoCheckTitleText   != null) askInfoCheckTitleText.gameObject.SetActive(true);
+        if (askInfoCheckActionsText != null) askInfoCheckActionsText.gameObject.SetActive(true);
+        if (askInfoCheckVerdictText != null) askInfoCheckVerdictText.gameObject.SetActive(true);
+        if (askInfoCheckHintText    != null) askInfoCheckHintText.gameObject.SetActive(true);
+    }
+
+    public void SetAskQuestionResponse(string responseText)
+    {
+        if (askQuestionResponseText != null)
+        {
+            askQuestionResponseText.text = responseText;
+            askQuestionResponseText.gameObject.SetActive(!string.IsNullOrEmpty(responseText));
+        }
     }
 
     public Sprite GetSubjectPhotoById(string id)
@@ -329,21 +470,65 @@ public class TerminalController : MonoBehaviour
     }
 
     // ═══════════════════════════════════════════════
-    // LOADING PANEL — animasi print
+    // LOADING PANEL — animasi print (ping-pong kanan kiri)
     // ═══════════════════════════════════════════════
+    private Coroutine loadingAnimCoroutine;
+
     public void ShowLoadingPanel()
     {
         HideAllTutorialPanels();
         if (loadingPanelObject != null) loadingPanelObject.SetActive(true);
+
+        if (loadingAnimCoroutine != null) StopCoroutine(loadingAnimCoroutine);
+        loadingAnimCoroutine = StartCoroutine(AnimateLoadingBarPingPong());
     }
 
     public void HideLoadingPanel()
     {
+        if (loadingAnimCoroutine != null)
+        {
+            StopCoroutine(loadingAnimCoroutine);
+            loadingAnimCoroutine = null;
+        }
         if (loadingPanelObject != null) loadingPanelObject.SetActive(false);
     }
 
+    private IEnumerator AnimateLoadingBarPingPong()
+    {
+        if (loadingBarRectTransform == null) yield break;
+
+        RectTransform parentRect = loadingBarRectTransform.parent as RectTransform;
+        float parentWidth = parentRect != null ? parentRect.rect.width : 300f;
+        float barWidth = loadingBarRectTransform.rect.width;
+        float maxX = (parentWidth - barWidth) * 0.5f;
+
+        if (maxX <= 0f) maxX = 100f;
+
+        float speed = maxX * 3f;
+        float currentX = 0f;
+        int direction = 1;
+
+        while (loadingPanelObject != null && loadingPanelObject.activeSelf)
+        {
+            currentX += direction * speed * Time.deltaTime;
+            if (currentX >= maxX)
+            {
+                currentX = maxX;
+                direction = -1;
+            }
+            else if (currentX <= -maxX)
+            {
+                currentX = -maxX;
+                direction = 1;
+            }
+
+            loadingBarRectTransform.anchoredPosition = new Vector2(currentX, loadingBarRectTransform.anchoredPosition.y);
+            yield return null;
+        }
+    }
+
     // ═══════════════════════════════════════════════
-    // TYPE TEST PANEL — robot check
+    // TYPE TEST PANEL — robot check, ghost text ala web typing-test
     // ═══════════════════════════════════════════════
     public void ShowTypeTestPanel(string prompt)
     {
@@ -351,11 +536,59 @@ public class TerminalController : MonoBehaviour
         if (typeTestPanelObject != null) typeTestPanelObject.SetActive(true);
         if (typeTestPromptTextComponent != null)
             typeTestPromptTextComponent.text = prompt;
+
+        typeTestTargetPhrase = prompt ?? "";
+        RenderTypeTestGhost(playerInputFieldComponent != null ? playerInputFieldComponent.text : "");
     }
 
     public void HideTypeTestPanel()
     {
         if (typeTestPanelObject != null) typeTestPanelObject.SetActive(false);
+        if (typeTestGhostTextComponent != null) typeTestGhostTextComponent.text = "";
+        typeTestTargetPhrase = "";
+    }
+
+    private void HandleInputValueChangedForTypeTest(string currentValue)
+    {
+        if (typeTestPanelObject != null && typeTestPanelObject.activeSelf)
+            RenderTypeTestGhost(currentValue);
+    }
+
+    // Render target phrase dengan warna per-karakter: abu-abu (belum diketik),
+    // hijau (benar), merah (salah) — sama kayak typing-test di web.
+    private void RenderTypeTestGhost(string typedSoFar)
+    {
+        if (typeTestGhostTextComponent == null || string.IsNullOrEmpty(typeTestTargetPhrase)) return;
+
+        typedSoFar = typedSoFar ?? "";
+        string hexCorrect = ColorUtility.ToHtmlStringRGB(typeTestCorrectColorValue);
+        string hexWrong   = ColorUtility.ToHtmlStringRGB(typeTestWrongColorValue);
+        string hexPending = ColorUtility.ToHtmlStringRGB(typeTestPendingColorValue);
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < typeTestTargetPhrase.Length; i++)
+        {
+            char targetChar = typeTestTargetPhrase[i];
+
+            if (i < typedSoFar.Length)
+            {
+                bool isCorrect = typedSoFar[i] == targetChar;
+                string hex = isCorrect ? hexCorrect : hexWrong;
+                sb.Append("<color=#").Append(hex).Append('>').Append(targetChar).Append("</color>");
+            }
+            else
+            {
+                sb.Append("<color=#").Append(hexPending).Append('>').Append(targetChar).Append("</color>");
+            }
+        }
+
+        typeTestGhostTextComponent.text = sb.ToString();
+    }
+
+    public void PlayNotificationSfx()
+    {
+        if (sfxAudioSourceComponent != null && notificationSfxClip != null)
+            sfxAudioSourceComponent.PlayOneShot(notificationSfxClip);
     }
 
     // ═══════════════════════════════════════════════
@@ -364,6 +597,7 @@ public class TerminalController : MonoBehaviour
     public void ShowFolderNotification()
     {
         if (folderNotificationObject != null) folderNotificationObject.SetActive(true);
+        PlayNotificationSfx();
     }
 
     public void HideFolderNotification()
@@ -372,17 +606,71 @@ public class TerminalController : MonoBehaviour
     }
 
     // ═══════════════════════════════════════════════
-    // ASK / INFO / CHECK PANEL — menu utama investigasi
+    // ASK / INFO / CHECK / TRAITS PANEL — menu utama investigasi
     // ═══════════════════════════════════════════════
     public void ShowAskInfoCheckPanel()
     {
         HideAllTutorialPanels();
         if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
-        if (askInfoCheckTextComponent != null)
-            askInfoCheckTextComponent.text =
-                "ASK      INFO      CHECK\n" +
-                "APPROVED  DENIED\n" +
-                "(ketik perintah di terminal)";
+        if (askInfoCheckTitleText != null)
+            askInfoCheckTitleText.text = "INVESTIGASI SUBJEK";
+        if (askInfoCheckActionsText != null)
+            askInfoCheckActionsText.text =
+                "<b><color=#FFE066>[ask]</color></b> Pertanyakan      " +
+                "<b><color=#FFE066>[info]</color></b> Biodata      " +
+                "<b><color=#FFE066>[check]</color></b> Inspeksi Foto      " +
+                "<b><color=#FFE066>[traits]</color></b> Anomali";
+        if (askInfoCheckVerdictText != null)
+            askInfoCheckVerdictText.text = "<b>APPROVED</b>      <b>DENIED</b>";
+        if (askInfoCheckHintText != null)
+            askInfoCheckHintText.text = "(ketik perintah di terminal)";
+    }
+
+    // BUKA KASUS: foto subjek muncul dulu, baru teks option (ASK INFO CHECK...) barengan.
+    public void ShowAskInfoCheckPanelSequential(Sprite photo)
+    {
+        HideAllTutorialPanels();
+        if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
+
+        SetAskInfoCheckPhoto(photo);
+
+        if (askInfoCheckTitleText != null)
+        {
+            askInfoCheckTitleText.text = "INVESTIGASI SUBJEK";
+            askInfoCheckTitleText.gameObject.SetActive(false);
+        }
+        if (askInfoCheckActionsText != null)
+        {
+            askInfoCheckActionsText.text =
+                "<b><color=#FFE066>[ask]</color></b> Pertanyakan      " +
+                "<b><color=#FFE066>[info]</color></b> Biodata      " +
+                "<b><color=#FFE066>[check]</color></b> Inspeksi Foto      " +
+                "<b><color=#FFE066>[traits]</color></b> Anomali";
+            askInfoCheckActionsText.gameObject.SetActive(false);
+        }
+        if (askInfoCheckVerdictText != null)
+        {
+            askInfoCheckVerdictText.text = "<b>APPROVED</b>      <b>DENIED</b>";
+            askInfoCheckVerdictText.gameObject.SetActive(false);
+        }
+        if (askInfoCheckHintText != null)
+        {
+            askInfoCheckHintText.text = "(ketik perintah di terminal)";
+            askInfoCheckHintText.gameObject.SetActive(false);
+        }
+
+        StartCoroutine(RevealAskInfoCheckStaggered());
+    }
+
+    private IEnumerator RevealAskInfoCheckStaggered()
+    {
+        yield return new WaitForSeconds(0.4f);
+
+        if (askInfoCheckTitleText != null)   { askInfoCheckTitleText.gameObject.SetActive(true); }
+        if (askInfoCheckActionsText != null) { askInfoCheckActionsText.gameObject.SetActive(true); }
+        if (askInfoCheckVerdictText != null) { askInfoCheckVerdictText.gameObject.SetActive(true); }
+        if (askInfoCheckHintText != null)    { askInfoCheckHintText.gameObject.SetActive(true); }
+        PlayRevealSfx();
     }
 
     public void SetAskInfoCheckPhoto(Sprite photo)
@@ -392,22 +680,151 @@ public class TerminalController : MonoBehaviour
         askInfoCheckPhotoImage.enabled = photo != null;
     }
 
-    public void ShowAskQuestionPanel()
+    // SCALABLE: dedicated panel baru — hide AskInfoCheck, show AskQuestionListPanel,
+    // satu item prefab di-instantiate per pertanyaan, reveal satu-satu + sfx.
+    public void ShowAskQuestionPanel(List<CaseQuestion> questions, string responseText = null)
     {
         HideAllTutorialPanels();
+
+        // Pastikan AskInfoCheck panel tetap aktif (foto subjek di background tetap terlihat)
         if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
-        if (askInfoCheckTextComponent != null)
-            askInfoCheckTextComponent.text =
-                "ID\n" +
-                "NAME\n" +
-                "REASON\n" +
-                "(ketik ID / NAME / REASON di terminal)";
+
+        // Sembunyikan teks bawaan AskInfoCheck agar tidak bertumpuk dengan list pertanyaan
+        if (askInfoCheckTitleText   != null) askInfoCheckTitleText.gameObject.SetActive(false);
+        if (askInfoCheckActionsText != null) askInfoCheckActionsText.gameObject.SetActive(false);
+        if (askInfoCheckVerdictText != null) askInfoCheckVerdictText.gameObject.SetActive(false);
+        if (askInfoCheckHintText    != null) askInfoCheckHintText.gameObject.SetActive(false);
+
+        if (askQuestionListPanelObject != null) askQuestionListPanelObject.SetActive(true);
+
+        if (askQuestionListTitleText != null)
+            askQuestionListTitleText.text = "PERTANYAAN";
+
+        // Update teks jawaban di UI (jika null/kosong, disembunyikan agar 'New Text' tidak pernah muncul)
+        SetAskQuestionResponse(responseText);
+
+        ClearContainer(askQuestionListContainer);
+
+        if (questions == null || askQuestionListContainer == null || askQuestionItemPrefab == null)
+            return;
+
+        List<GameObject> spawnedItems = new List<GameObject>();
+        for (int i = 0; i < questions.Count; i++)
+        {
+            CaseQuestion q = questions[i];
+            string keyword = string.IsNullOrWhiteSpace(q.commandKeyword)
+                ? ("q" + (i + 1))
+                : q.commandKeyword.Trim().ToLower();
+
+            GameObject itemGameObject = Instantiate(askQuestionItemPrefab, askQuestionListContainer);
+            itemGameObject.SetActive(false);
+
+            TMP_Text itemTextComponent = itemGameObject.GetComponentInChildren<TMP_Text>(true);
+            if (itemTextComponent != null)
+                itemTextComponent.text = "<b><color=#FFE066>[" + keyword + "]</color></b> " + q.questionText;
+
+            spawnedItems.Add(itemGameObject);
+        }
+
+        StartCoroutine(RevealItemsStaggered(spawnedItems));
     }
 
     public void HideAskInfoCheckPanel()
     {
         if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(false);
         SetAskInfoCheckPhoto(null);
+    }
+
+    public void HideAskQuestionPanel()
+    {
+        if (askQuestionListPanelObject != null) askQuestionListPanelObject.SetActive(false);
+        ClearContainer(askQuestionListContainer);
+
+        // Reset dan sembunyikan UI respon pertanyaan saat keluar menu ask
+        SetAskQuestionResponse(null);
+
+        // Munculkan kembali teks bawaan AskInfoCheck jika kembali ke menu utama
+        if (askInfoCheckTitleText   != null) askInfoCheckTitleText.gameObject.SetActive(true);
+        if (askInfoCheckActionsText != null) askInfoCheckActionsText.gameObject.SetActive(true);
+        if (askInfoCheckVerdictText != null) askInfoCheckVerdictText.gameObject.SetActive(true);
+        if (askInfoCheckHintText    != null) askInfoCheckHintText.gameObject.SetActive(true);
+    }
+
+    // ═══════════════════════════════════════════════
+    // TRAITS PANEL — kriteria anomali (SCALABLE, prefab per baris, reveal satu-satu)
+    // ═══════════════════════════════════════════════
+    public void ShowTraitsPanel(List<string> traits)
+    {
+        HideAllTutorialPanels();
+        if (traitsPanelObject != null) traitsPanelObject.SetActive(true);
+
+        ClearContainer(traitsListContainer);
+
+        if (traits == null || traitsListContainer == null || traitsItemPrefab == null)
+            return;
+
+        List<GameObject> spawnedItems = new List<GameObject>();
+        for (int i = 0; i < traits.Count; i++)
+        {
+            GameObject itemGameObject = Instantiate(traitsItemPrefab, traitsListContainer);
+            itemGameObject.SetActive(false);
+
+            TMP_Text itemTextComponent = itemGameObject.GetComponentInChildren<TMP_Text>(true);
+            if (itemTextComponent != null)
+                itemTextComponent.text = "- " + traits[i];
+
+            spawnedItems.Add(itemGameObject);
+        }
+
+        StartCoroutine(RevealItemsStaggered(spawnedItems));
+    }
+
+    public void HideTraitsPanel()
+    {
+        if (traitsPanelObject != null) traitsPanelObject.SetActive(false);
+        ClearContainer(traitsListContainer);
+    }
+
+    // ═══════════════════════════════════════════════
+    // STAGGERED REVEAL — dipakai boot text (OpeningSequence) & list dinamis (ask/traits)
+    // ═══════════════════════════════════════════════
+    private void PlayRevealSfx()
+    {
+        if (sfxAudioSourceComponent != null && revealTingClip != null)
+            sfxAudioSourceComponent.PlayOneShot(revealTingClip);
+    }
+
+    private IEnumerator RevealItemsStaggered(List<GameObject> items)
+    {
+        foreach (GameObject item in items)
+        {
+            if (item != null) item.SetActive(true);
+            PlayRevealSfx();
+            yield return new WaitForSeconds(revealStaggerDelay);
+        }
+    }
+
+    // Dipanggil dari OpeningSequence buat nampilin baris-baris teks boot satu-satu
+    // (bukan character-by-character kayak TypeStoryText), disertai sfx tiap baris.
+    public IEnumerator RevealLinesStaggered(TMP_Text targetTextComponent, string[] lines)
+    {
+        if (targetTextComponent == null || lines == null) yield break;
+
+        targetTextComponent.text = "";
+        foreach (string line in lines)
+        {
+            if (targetTextComponent.text.Length > 0) targetTextComponent.text += "\n";
+            targetTextComponent.text += line;
+            PlayRevealSfx();
+            yield return new WaitForSeconds(revealStaggerDelay);
+        }
+    }
+
+    private void ClearContainer(Transform container)
+    {
+        if (container == null) return;
+        for (int i = container.childCount - 1; i >= 0; i--)
+            Destroy(container.GetChild(i).gameObject);
     }
 
     // ═══════════════════════════════════════════════
@@ -418,7 +835,12 @@ public class TerminalController : MonoBehaviour
         HideAllTutorialPanels();
         if (verdictPanelObject != null) verdictPanelObject.SetActive(true);
         if (verdictTextComponent != null)
-            verdictTextComponent.text = "VERDICT: " + (approved ? "APPROVED" : "DENIED");
+        {
+            string status = approved ? "<color=#55FF55>APPROVED</color>" : "<color=#FF5555>DENIED</color>";
+            verdictTextComponent.text =
+                "KEPUTUSAN DITERIMA: " + status + "\n\n" +
+                "<size=80%><color=#88FF88>(Ketik 'print' di terminal untuk mencetak dokumen keputusan)</color></size>";
+        }
     }
 
     public void HideVerdictPanel()
@@ -579,10 +1001,21 @@ public class TerminalController : MonoBehaviour
         if (loadingBarRectTransform   == null) Debug.LogWarning("[TerminalController] loadingBarRectTransform belum di-assign!");
         if (typeTestPanelObject      == null) Debug.LogWarning("[TerminalController] typeTestPanelObject belum di-assign!");
         if (typeTestPromptTextComponent== null) Debug.LogWarning("[TerminalController] typeTestPromptTextComponent belum di-assign!");
+        if (typeTestGhostTextComponent == null) Debug.LogWarning("[TerminalController] typeTestGhostTextComponent belum di-assign! (ghost text type-test gak akan muncul)");
         if (folderNotificationObject  == null) Debug.LogWarning("[TerminalController] folderNotificationObject belum di-assign!");
         if (askInfoCheckPanelObject   == null) Debug.LogWarning("[TerminalController] askInfoCheckPanelObject belum di-assign!");
-        if (askInfoCheckTextComponent == null) Debug.LogWarning("[TerminalController] askInfoCheckTextComponent belum di-assign!");
+        if (askInfoCheckTitleText     == null) Debug.LogWarning("[TerminalController] askInfoCheckTitleText belum di-assign!");
+        if (askInfoCheckActionsText   == null) Debug.LogWarning("[TerminalController] askInfoCheckActionsText belum di-assign!");
+        if (askInfoCheckVerdictText   == null) Debug.LogWarning("[TerminalController] askInfoCheckVerdictText belum di-assign!");
+        if (askInfoCheckHintText      == null) Debug.LogWarning("[TerminalController] askInfoCheckHintText belum di-assign!");
         if (askInfoCheckPhotoImage    == null) Debug.LogWarning("[TerminalController] askInfoCheckPhotoImage belum di-assign!");
+        if (askQuestionListPanelObject == null) Debug.LogWarning("[TerminalController] askQuestionListPanelObject belum di-assign! (panel 'ask' gak akan kelihatan)");
+        if (askQuestionListTitleText  == null) Debug.LogWarning("[TerminalController] askQuestionListTitleText belum di-assign!");
+        if (askQuestionListContainer  == null) Debug.LogWarning("[TerminalController] askQuestionListContainer belum di-assign! (ask menu gak akan nampilin daftar pertanyaan)");
+        if (askQuestionItemPrefab     == null) Debug.LogWarning("[TerminalController] askQuestionItemPrefab belum di-assign! (ask menu gak akan nampilin daftar pertanyaan)");
+        if (traitsPanelObject         == null) Debug.LogWarning("[TerminalController] traitsPanelObject belum di-assign! (menu 'traits' gak akan kelihatan)");
+        if (traitsListContainer       == null) Debug.LogWarning("[TerminalController] traitsListContainer belum di-assign!");
+        if (traitsItemPrefab          == null) Debug.LogWarning("[TerminalController] traitsItemPrefab belum di-assign!");
         if (verdictPanelObject        == null) Debug.LogWarning("[TerminalController] verdictPanelObject belum di-assign!");
         if (verdictTextComponent      == null) Debug.LogWarning("[TerminalController] verdictTextComponent belum di-assign!");
     }

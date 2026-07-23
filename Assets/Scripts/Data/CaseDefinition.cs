@@ -14,8 +14,12 @@ public class CaseDefinition : ScriptableObject
     [Header("Kesempatan (baterai)")]
     public int maxChances = 3;
 
-    [Header("Daftar Pertanyaan (bebas isi)")]
+    [Header("Daftar Pertanyaan (bebas isi, jumlah bebas — scalable)")]
     public List<CaseQuestion> questions;
+
+    [Header("Traits — kriteria buat kenalin anomali (opsional, muncul di menu 'traits')")]
+    [Tooltip("Satu baris = satu poin kriteria. Tampil apa adanya di panel traits, jumlah bebas.")]
+    [TextArea] public List<string> traits = new List<string>();
 
     [Header("Type Test Fase Print (robot check) — trigger doang, lanjut ke printing")]
     public bool usePrintTypeTest = true;

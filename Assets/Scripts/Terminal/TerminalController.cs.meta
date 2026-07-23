@@ -8,11 +8,16 @@ MonoImporter:
   - outputScrollRectComponent: {instanceID: 0}
   - outputContentTransform: {instanceID: 0}
   - subjectPhotoImageComponent: {instanceID: 0}
-  - emptyPhotoPlaceholder: {fileID: -1656147307, guid: cb55c601dad5ca34ba8eb6e22ddc95f4, type: 3}
-  - confirmPanelObject: {instanceID: 0}
-  - confirmQuestionTextComponent: {instanceID: 0}
+  - emptyPhotoPlaceholder: {fileID: 490584574, guid: 5eb1595134f28c647bc8a81970cf7f2b, type: 3}
+  - subject0042Photo: {instanceID: 0}
+  - subject0043Photo: {instanceID: 0}
+  - subject0044Photo: {instanceID: 0}
+  - folderIconSprite: {instanceID: 0}
+  - iyaTidakPanelObject: {instanceID: 0}
   - iyaOptionTextComponent: {instanceID: 0}
   - tidakOptionTextComponent: {instanceID: 0}
+  - confirmPanelObject: {instanceID: 0}
+  - confirmInstructionTextComponent: {instanceID: 0}
   - folderIconObject: {instanceID: 0}
   - folderImageComponent: {instanceID: 0}
   - folderLabelTextComponent: {instanceID: 0}
@@ -25,8 +30,39 @@ MonoImporter:
   - dataPanelObject: {instanceID: 0}
   - dataIdTextComponent: {instanceID: 0}
   - dataNameTextComponent: {instanceID: 0}
+  - dataGenderTextComponent: {instanceID: 0}
   - dataDobTextComponent: {instanceID: 0}
   - dataExpiryTextComponent: {instanceID: 0}
+  - inspectPanelObject: {instanceID: 0}
+  - inspectPhotoImageComponent: {instanceID: 0}
+  - inspectCounterTextComponent: {instanceID: 0}
+  - inspectLeftArrowObject: {instanceID: 0}
+  - inspectRightArrowObject: {instanceID: 0}
+  - loadingPanelObject: {instanceID: 0}
+  - loadingBarRectTransform: {instanceID: 0}
+  - typeTestPanelObject: {instanceID: 0}
+  - typeTestPromptTextComponent: {instanceID: 0}
+  - typeTestGhostTextComponent: {instanceID: 0}
+  - folderNotificationObject: {instanceID: 0}
+  - askInfoCheckPanelObject: {instanceID: 0}
+  - askInfoCheckTitleText: {instanceID: 0}
+  - askInfoCheckActionsText: {instanceID: 0}
+  - askInfoCheckVerdictText: {instanceID: 0}
+  - askInfoCheckHintText: {instanceID: 0}
+  - askInfoCheckPhotoImage: {instanceID: 0}
+  - askQuestionListPanelObject: {instanceID: 0}
+  - askQuestionListTitleText: {instanceID: 0}
+  - askQuestionListContainer: {instanceID: 0}
+  - askQuestionItemPrefab: {instanceID: 0}
+  - askQuestionResponseText: {instanceID: 0}
+  - traitsPanelObject: {instanceID: 0}
+  - traitsListContainer: {instanceID: 0}
+  - traitsItemPrefab: {instanceID: 0}
+  - verdictPanelObject: {instanceID: 0}
+  - verdictTextComponent: {instanceID: 0}
+  - sfxAudioSourceComponent: {instanceID: 0}
+  - revealTingClip: {instanceID: 0}
+  - notificationSfxClip: {instanceID: 0}
   - terminalLinePrefabGameObject: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}

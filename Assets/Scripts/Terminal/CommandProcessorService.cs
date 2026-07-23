@@ -134,11 +134,13 @@ public class CommandProcessorService
         AddLine("ask            — tampilkan daftar pertanyaan", TerminalLineType.Response);
         AddLine("info           — lihat data subjek", TerminalLineType.Response);
         AddLine("check          — periksa foto subjek", TerminalLineType.Response);
-        AddLine("rotate         — putar foto subject (saat check)", TerminalLineType.Response);
+        AddLine("right / left    — putar foto subjek (saat check)", TerminalLineType.Response);
+        AddLine("traits         — lihat kriteria anomali (gratis)", TerminalLineType.Response);
         AddLine("approved       — setujui subject aktif", TerminalLineType.Response);
         AddLine("denied         — tolak subject aktif", TerminalLineType.Response);
         AddLine("print          — cetak dokumen setelah verdict", TerminalLineType.Response);
-        AddLine("esc            — kembali ke menu utama kasus", TerminalLineType.Response);
+        AddLine("back           — kembali ke menu utama kasus", TerminalLineType.Response);
+        AddLine("esc            — keluar dari komputer (diam-diam)", TerminalLineType.Response);
         AddLine("clear          — bersihkan layar", TerminalLineType.Response);
         AddLine("==========================", TerminalLineType.System);
     }

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: cb55c601dad5ca34ba8eb6e22ddc95f4
+guid: 5eb1595134f28c647bc8a81970cf7f2b
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -97,13 +97,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Folder_0
+      name: Folder Jo_0
       rect:
         serializedVersion: 2
-        x: 49
-        y: 236
-        width: 1830
-        height: 1451
+        x: 0
+        y: 0
+        width: 200
+        height: 166
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -112,8 +112,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: a787f4c3a3279214eba067b9b464b1df
-      internalID: -1656147307
+      spriteID: f44c60976cee15c4cbe13cdd7efa2e35
+      internalID: 490584574
       vertices: []
       indices: 
       edges: []
@@ -122,7 +122,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 3ecc54d290271ac44ad64942ac6de379
+    spriteID: cc5d00d6254af824caf84390a034cb33
     internalID: 0
     vertices: []
     indices: 
@@ -132,7 +132,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Folder_0: -1656147307
+      Folder Jo_0: 490584574
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
