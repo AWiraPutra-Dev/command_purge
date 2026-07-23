@@ -150,4 +150,4 @@ MonoBehaviour:
   playerMovement: {fileID: 0}
   playerCameraTransform: {fileID: 0}
   cinemachineCameraObject: {fileID: 0}
-  lerpSpeed: 2
+  lerpSpeed: 0.6
