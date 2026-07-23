@@ -25,9 +25,7 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     [SerializeField] private float grabDirectionAngleOffset;
 
     [Header("Audio")]
-    [SerializeField] private AudioSource audioSource;
-    [SerializeField] private AudioClip openSound;
-    [SerializeField] private AudioClip closeSound;
+    [SerializeField] private TrapdoorSoundController trapdoorSound;
 
     private enum DoorState { Closed, Opening, Open, Closing }
     private DoorState currentState = DoorState.Closed;
@@ -191,8 +189,8 @@ public class TrapDoorController : MonoBehaviour, IInteractable
         if (_doorCollider != null)
             _doorCollider.enabled = false;
 
-        if (audioSource != null && openSound != null)
-            audioSource.PlayOneShot(openSound);
+        if (trapdoorSound != null)
+            trapdoorSound.PlayOpenSound();
 
         float elapsed = 0f;
         Quaternion startRot = doorMeshTransform.localRotation;
@@ -231,8 +229,8 @@ public class TrapDoorController : MonoBehaviour, IInteractable
         if (_doorCollider != null)
             _doorCollider.enabled = false;
 
-        if (audioSource != null && openSound != null)
-            audioSource.PlayOneShot(openSound);
+        if (trapdoorSound != null)
+            trapdoorSound.PlayOpenSound();
 
         float elapsed = 0f;
         Quaternion startRot = doorMeshTransform.localRotation;
@@ -254,8 +252,8 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     {
         currentState = DoorState.Closing;
 
-        if (audioSource != null && closeSound != null)
-            audioSource.PlayOneShot(closeSound);
+        if (trapdoorSound != null)
+            trapdoorSound.PlayCloseSound();
 
         float elapsed = 0f;
         Quaternion startRot = doorMeshTransform.localRotation;

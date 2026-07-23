@@ -38,6 +38,9 @@ public class FPSMovement : MonoBehaviour
     private Vector2 _moveInput;
     private bool _isGrounded;
     private float _verticalVelocity;
+    private Vector3 _lastMovePosition;
+    private bool _isMovementBlocked;
+    private int _blockedFrameCount;
 
     private bool _isClimbing;
     private Vector3 _ladderGrabDirection;
@@ -79,6 +82,7 @@ public class FPSMovement : MonoBehaviour
     private void Awake()
     {
         _characterController = GetComponent<CharacterController>();
+        _lastMovePosition = transform.position;
 
         if (cameraTransform != null)
         {
@@ -364,6 +368,21 @@ public class FPSMovement : MonoBehaviour
         var collision = _characterController.Move(finalMove * Time.deltaTime);
         if ((collision & CollisionFlags.Above) != 0)
             _verticalVelocity = 0;
+
+        Vector3 actualDelta = transform.position - _lastMovePosition;
+        float horizontalDist = new Vector3(actualDelta.x, 0, actualDelta.z).magnitude;
+        _lastMovePosition = transform.position;
+
+        if (_moveInput.magnitude > 0.01f && horizontalDist < 0.0001f)
+        {
+            _blockedFrameCount++;
+            _isMovementBlocked = _blockedFrameCount >= 3;
+        }
+        else
+        {
+            _blockedFrameCount = 0;
+            _isMovementBlocked = false;
+        }
     }
 
     private void HandleClimbing()
@@ -374,10 +393,10 @@ public class FPSMovement : MonoBehaviour
             _targetDutch = Mathf.Lerp(_targetDutch, 0f, Time.deltaTime * 6f);
             if (_mainCameraTransform != null)
             {
-                Vector3 camPos = _mainCameraTransform.localPosition;
-                camPos.x = Mathf.Lerp(camPos.x, _baseCameraX, Time.deltaTime * 3f);
-                camPos.y = Mathf.Lerp(camPos.y, _baseCameraY, Time.deltaTime * 3f);
-                _mainCameraTransform.localPosition = camPos;
+                Vector3 boundaryCamPos = _mainCameraTransform.localPosition;
+                boundaryCamPos.x = Mathf.Lerp(boundaryCamPos.x, _baseCameraX, Time.deltaTime * 3f);
+                boundaryCamPos.y = Mathf.Lerp(boundaryCamPos.y, _baseCameraY, Time.deltaTime * 3f);
+                _mainCameraTransform.localPosition = boundaryCamPos;
                 _swingRollOffset = Mathf.Lerp(_swingRollOffset, 0f, Time.deltaTime * 3f);
             }
             return;
@@ -407,30 +426,17 @@ public class FPSMovement : MonoBehaviour
             PlayStepSound();
         }
 
-        if (Mathf.Abs(_currentClimbSpeed) > 0.1f)
-        {
-            _swingTimer += Time.deltaTime * climbSwingSpeed;
-            float swingX = Mathf.Sin(_swingTimer) * climbSwingAmplitude;
-            _swingRollOffset = Mathf.Sin(_swingTimer * 0.7f) * climbSwingRoll;
-
-            Vector3 camPos = _mainCameraTransform.localPosition;
-            camPos.x = Mathf.Lerp(camPos.x, _baseCameraX + swingX, Time.deltaTime * 6f);
-            camPos.y = Mathf.Lerp(camPos.y, _baseCameraY, Time.deltaTime * 6f);
-            _mainCameraTransform.localPosition = camPos;
-        }
-        else
-        {
-            Vector3 camPos = _mainCameraTransform.localPosition;
-            camPos.x = Mathf.Lerp(camPos.x, _baseCameraX, Time.deltaTime * 3f);
-            _mainCameraTransform.localPosition = camPos;
-            _swingRollOffset = Mathf.Lerp(_swingRollOffset, 0f, Time.deltaTime * 3f);
-        }
-
+        _swingTimer += Time.deltaTime * climbSwingSpeed;
         _climbBobTimer += Time.deltaTime * climbBobFrequency;
+
+        float swingX = Mathf.Sin(_swingTimer) * climbSwingAmplitude;
+        _swingRollOffset = Mathf.Sin(_swingTimer * 0.7f) * climbSwingRoll;
         float bob = Mathf.Sin(_climbBobTimer) * climbBobAmplitude;
-        Vector3 pos = _mainCameraTransform.localPosition;
-        pos.y = Mathf.Lerp(pos.y, _baseCameraY + bob, Time.deltaTime * 6f);
-        _mainCameraTransform.localPosition = pos;
+
+        Vector3 camPos = _mainCameraTransform.localPosition;
+        camPos.x = Mathf.Lerp(camPos.x, _baseCameraX + swingX, Time.deltaTime * 6f);
+        camPos.y = Mathf.Lerp(camPos.y, _baseCameraY + bob, Time.deltaTime * 6f);
+        _mainCameraTransform.localPosition = camPos;
 
         _targetDutch = _swingRollOffset;
 
@@ -548,7 +554,7 @@ public class FPSMovement : MonoBehaviour
     }
 
     public bool IsClimbing() => _isClimbing;
-    public bool IsMoving() => _moveInput.magnitude > 0.01f;
+    public bool IsMoving() => _moveInput.magnitude > 0.01f && !_isMovementBlocked;
     public float GetMoveMagnitude() => Mathf.Clamp01(_moveInput.magnitude);
     public bool IsTransitioningToLadder() => _isReleasing;
     public bool HasReachedBoundary() => _hasReachedBoundary;

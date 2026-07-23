@@ -156,7 +156,7 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
-        Gain: 1
+        Gain: 0.5
         LegacyInput: 
         LegacyGain: 1
         CancelDeltaTime: 0
@@ -169,7 +169,7 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
-        Gain: -1
+        Gain: -0.5
         LegacyInput: 
         LegacyGain: 1
         CancelDeltaTime: 0
@@ -301,12 +301,12 @@ MonoBehaviour:
   gravity: -9.81
   cameraTransform: {fileID: 2071955666003624866}
   moveAction: {fileID: 2209845521853263884, guid: 9b229b9f1f9e12341a1130059ec15f63, type: 3}
-  climbSpeed: 0.2
+  climbSpeed: 0.3
   climbSwingAmplitude: 0.04
-  climbSwingSpeed: 4
+  climbSwingSpeed: 2.4
   climbSwingRoll: 1.5
   climbBobAmplitude: 0.015
-  climbBobFrequency: 5
+  climbBobFrequency: 3
   climbAcceleration: 3
   letGoPrompt: Let Go Ladder (E)
   climbPromptPanel: {fileID: 0}

@@ -24,50 +24,25 @@ public class CameraBreathEffect : MonoBehaviour
     private float _blend;
     private Vector3 _posOffset;
     private Vector3 _rotOffset;
-    private bool _wasInClimbState;
-    private Vector3 _savedPosOffset;
-    private Vector3 _savedRotOffset;
-    private float _fadeTimer;
-    private Vector3 _fadeRemovedPos;
-    private Vector3 _fadeRemovedRot;
-    private const float FADE_DURATION = 0.2f;
-
     private void Awake()
     {
-        if (fpsMovement == null)
-            fpsMovement = GetComponentInParent<FPSMovement>();
+        fpsMovement = GetComponentInParent<FPSMovement>();
         if (fpsMovement == null)
             fpsMovement = FindFirstObjectByType<FPSMovement>();
         if (fpsMovement == null)
-            fpsMovement = FindObjectOfType<FPSMovement>();
+            fpsMovement = FindAnyObjectByType<FPSMovement>();
     }
 
     private void Update()
     {
+        transform.localPosition -= _posOffset;
+        transform.localRotation *= Quaternion.Inverse(Quaternion.Euler(_rotOffset));
+
+        if (fpsMovement == null)
+            fpsMovement = FindFirstObjectByType<FPSMovement>();
+
         if (fpsMovement != null && (fpsMovement.IsClimbing() || fpsMovement.IsTransitioningToLadder()))
         {
-            if (!_wasInClimbState)
-            {
-                _wasInClimbState = true;
-                _savedPosOffset = _posOffset;
-                _savedRotOffset = _rotOffset;
-                _fadeTimer = 0f;
-                _fadeRemovedPos = Vector3.zero;
-                _fadeRemovedRot = Vector3.zero;
-            }
-
-            _fadeTimer += Time.deltaTime;
-            float t = Mathf.Clamp01(_fadeTimer / FADE_DURATION);
-            Vector3 targetRemovedPos = Vector3.Lerp(Vector3.zero, _savedPosOffset, t);
-            Vector3 targetRemovedRot = Vector3.Lerp(Vector3.zero, _savedRotOffset, t);
-            Vector3 frameRemovalPos = targetRemovedPos - _fadeRemovedPos;
-            Vector3 frameRemovalRot = targetRemovedRot - _fadeRemovedRot;
-
-            transform.localPosition -= frameRemovalPos;
-            transform.localRotation *= Quaternion.Inverse(Quaternion.Euler(frameRemovalRot));
-
-            _fadeRemovedPos = targetRemovedPos;
-            _fadeRemovedRot = targetRemovedRot;
             _posOffset = Vector3.zero;
             _rotOffset = Vector3.zero;
             _breathTimer = 0f;
@@ -75,10 +50,6 @@ public class CameraBreathEffect : MonoBehaviour
             _blend = 0f;
             return;
         }
-        _wasInClimbState = false;
-
-        transform.localPosition -= _posOffset;
-        transform.localRotation *= Quaternion.Inverse(Quaternion.Euler(_rotOffset));
 
         _breathTimer += Time.deltaTime;
         if (_breathTimer > breathDuration)
