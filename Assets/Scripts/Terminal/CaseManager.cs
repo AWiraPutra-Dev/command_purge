@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -7,10 +8,11 @@ public class CaseManager : MonoBehaviour
     private enum InvestState
     {
         Notification,   // folder blink, tunggu "open"
-        MainMenu,       // pilih ask / info / check
-        AskMenu,        // pilih 1/2/3
-        InfoMode,        // lihat data panel, "esc" balik
-        CheckMode,       // inspect foto, rotate, "esc" balik
+        MainMenu,       // pilih ask / info / check / traits
+        AskMenu,        // pilih pertanyaan (keyword dinamis per CaseQuestion)
+        InfoMode,        // lihat data panel, "back" balik
+        CheckMode,       // inspect foto, right/left buat rotate, "back" balik
+        TraitsMode,      // lihat kriteria anomali, "back" balik
         TypeTestAsk,    // ketik jawaban pertanyaan
         TypeTestPrint,  // ketik jawaban print-phase
         PrintConfirm,   // tunggu "confirm" sebelum cetak
@@ -32,9 +34,17 @@ public class CaseManager : MonoBehaviour
     private bool isCaseActive;
     private bool glitchActive;
 
+    [Header("Jeda antar-kasus (detik) — waktu di luar komputer sebelum kasus berikutnya mulai")]
+    [SerializeField] private float interCaseDelay = 20f;
+
     public bool IsCaseActive => isCaseActive;
     public CaseDefinition CurrentCase => currentCase;
     public SubjectDataModel CurrentSubject => currentSubject;
+
+    // Dipanggil pas dokumen selesai dicetak, ATAU pas player ketik "esc" di state manapun.
+    // Kedua kasus TIDAK mereset state investigasi (chances, currentState, currentFrameIndex, dll
+    // tetap seperti apa adanya) — jadi begitu balik ke komputer, lanjut persis dari titik yang sama.
+    public Action OnRequestExitComputer;
 
     public void Initialize(GameManager gm, CaseDefinition[] cases, TerminalController tc)
     {
@@ -83,6 +93,14 @@ public class CaseManager : MonoBehaviour
 
         string cmd = rawInput.Trim().ToLower();
 
+        // ESC sekarang GLOBAL: langsung keluar dari komputer, diam-diam, di state manapun
+        // (kecuali PrintAnim, yang inputnya sudah di-block total). State investigasi tetap disimpan.
+        if (cmd == "esc")
+        {
+            OnRequestExitComputer?.Invoke();
+            return;
+        }
+
         switch (currentState)
         {
             case InvestState.Notification: HandleNotification(cmd); break;
@@ -90,6 +108,7 @@ public class CaseManager : MonoBehaviour
             case InvestState.AskMenu:      HandleAskMenu(cmd); break;
             case InvestState.InfoMode:     HandleInfoMode(cmd); break;
             case InvestState.CheckMode:     HandleCheckMode(cmd, parts); break;
+            case InvestState.TraitsMode:   HandleTraitsMode(cmd); break;
             case InvestState.TypeTestAsk:  HandleTypeTestAsk(cmd); break;
             case InvestState.TypeTestPrint: HandleTypeTestPrint(cmd); break;
             case InvestState.PrintConfirm: HandlePrintConfirm(cmd); break;
@@ -129,8 +148,7 @@ public class CaseManager : MonoBehaviour
     private void ShowMainPanel()
     {
         terminalController.HideAllTutorialPanels();
-        terminalController.ShowAskInfoCheckPanel();
-        terminalController.SetAskInfoCheckPhoto(GetFrontPhoto());
+        terminalController.ShowAskInfoCheckPanelSequential(GetFrontPhoto());
         terminalController.AddLine("Sisa kesempatan: " + chancesRemaining, TerminalLineType.System);
     }
 
@@ -149,18 +167,29 @@ public class CaseManager : MonoBehaviour
         {
             if (chancesRemaining <= 0) { NoChance(); return; }
             chancesRemaining--;
+            PrintBatteryStatus();
             terminalController.HideAllTutorialPanels();
             terminalController.ShowDataPanel(currentSubject);
-            terminalController.AddLine("Ketik 'esc' untuk kembali.", TerminalLineType.System);
+            terminalController.AddLine("Ketik 'back' untuk kembali.", TerminalLineType.System);
             currentState = InvestState.InfoMode;
         }
         else if (cmd == "check")
         {
             if (chancesRemaining <= 0) { NoChance(); return; }
             chancesRemaining--;
+            PrintBatteryStatus();
+            currentFrameIndex = 0;
             terminalController.ShowInspectPanel(currentSubject.photoFrames, currentFrameIndex);
-            terminalController.AddLine("Ketik 'esc' untuk kembali. 'rotate' untuk ubah sudut.", TerminalLineType.System);
+            terminalController.AddLine("Ketik 'right' / 'left' buat putar, 'back' buat kembali.", TerminalLineType.System);
             currentState = InvestState.CheckMode;
+        }
+        else if (cmd == "traits")
+        {
+            // Traits = rulebook referensi, TIDAK makan baterai (bukan aksi investigasi ke subjek).
+            terminalController.HideAllTutorialPanels();
+            terminalController.ShowTraitsPanel(currentCase.traits);
+            terminalController.AddLine("Ketik 'back' untuk kembali.", TerminalLineType.System);
+            currentState = InvestState.TraitsMode;
         }
         else if (cmd == "approved" || cmd == "denied")
         {
@@ -177,7 +206,7 @@ public class CaseManager : MonoBehaviour
         }
         else
         {
-            terminalController.AddLine("Perintah tidak dikenal. Ketik ask / info / check / print.", TerminalLineType.Error);
+            terminalController.AddLine("Perintah tidak dikenal. Ketik ask / info / check / traits / print.", TerminalLineType.Error);
         }
     }
 
@@ -186,34 +215,40 @@ public class CaseManager : MonoBehaviour
         terminalController.AddLine("Kesempatan habis. Ambil keputusan: approved / denied.", TerminalLineType.Error);
     }
 
-    // ═══════════════════════════════════════════════
-    // ASK MENU — daftar 1/2/3 di panel (ID / NAME / REASON)
-    // ═══════════════════════════════════════════════
-    private void ShowAskQuestionPanel()
+    private void PrintBatteryStatus()
     {
-        terminalController.HideAllTutorialPanels();
-        terminalController.ShowAskQuestionPanel();
-        terminalController.AddLine("Ketik ID / NAME / REASON, atau 'esc' untuk batal.", TerminalLineType.System);
+        terminalController.AddLine("[Sisa Baterai / Kesempatan: " + chancesRemaining + "/" + currentCase.maxChances + "]", TerminalLineType.Warning);
+    }
+
+    // ═══════════════════════════════════════════════
+    // ASK MENU — daftar pertanyaan dinamis (scalable, jumlah bebas)
+    // ═══════════════════════════════════════════════
+    private void ShowAskQuestionPanel(string responseText = null)
+    {
+        terminalController.ShowAskQuestionPanel(currentCase.questions, responseText);
+        terminalController.AddLine("Ketik kata kunci pertanyaan yang mau ditanyakan, atau 'back' untuk batal.", TerminalLineType.System);
     }
 
     private void HandleAskMenu(string cmd)
     {
-        if (cmd == "esc") { currentState = InvestState.MainMenu; ShowMainPanel(); return; }
-
-        int idx = -1;
-        if (cmd == "id") idx = 0;
-        else if (cmd == "name") idx = 1;
-        else if (cmd == "reason") idx = 2;
-        else { return; }
-
-        if (currentCase.questions == null || idx < 0 || idx >= currentCase.questions.Count)
+        if (cmd == "back")
         {
-            terminalController.AddLine("Pertanyaan tidak valid.", TerminalLineType.Error);
+            terminalController.HideAskQuestionPanel();
+            currentState = InvestState.MainMenu;
+            ShowMainPanel();
+            return;
+        }
+
+        int idx = FindQuestionIndexByKeyword(cmd);
+        if (idx < 0)
+        {
+            terminalController.AddLine("Kata kunci tidak dikenal. Cek daftar pertanyaan di panel.", TerminalLineType.Error);
             return;
         }
 
         if (chancesRemaining <= 0) { NoChance(); return; }
         chancesRemaining--;
+        PrintBatteryStatus();
 
         CaseQuestion q = currentCase.questions[idx];
         terminalController.AddLine("Kamu: " + q.questionText, TerminalLineType.Input);
@@ -221,7 +256,8 @@ public class CaseManager : MonoBehaviour
         if (q.useTypeTest)
         {
             pendingQuestion = q;
-            terminalController.ShowTypeTestPanel(q.questionText);
+            string prompt = !string.IsNullOrWhiteSpace(q.typeTestPrompt) ? q.typeTestPrompt : q.questionText;
+            terminalController.ShowTypeTestPanel(prompt);
             terminalController.AddLine("Ketik ulang pertanyaan di atas untuk memanggil jawaban.", TerminalLineType.Warning);
             currentState = InvestState.TypeTestAsk;
         }
@@ -229,21 +265,46 @@ public class CaseManager : MonoBehaviour
         {
             PrintQuestionResponse(q);
             currentState = InvestState.AskMenu;
-            ShowMainPanel();
         }
+    }
+
+    private int FindQuestionIndexByKeyword(string cmd)
+    {
+        if (currentCase.questions == null) return -1;
+
+        for (int i = 0; i < currentCase.questions.Count; i++)
+        {
+            string keyword = GetQuestionKeyword(currentCase.questions[i], i);
+            if (cmd == keyword) return i;
+        }
+        return -1;
+    }
+
+    private string GetQuestionKeyword(CaseQuestion q, int index)
+    {
+        return string.IsNullOrWhiteSpace(q.commandKeyword)
+            ? ("q" + (index + 1))
+            : q.commandKeyword.Trim().ToLower();
     }
 
     private void HandleTypeTestAsk(string input)
     {
-        if (pendingQuestion == null) { currentState = InvestState.AskMenu; ShowMainPanel(); return; }
+        if (pendingQuestion == null) { currentState = InvestState.AskMenu; ShowAskQuestionPanel(); return; }
 
-        if (input.Trim().ToLower() == pendingQuestion.questionText.Trim().ToLower())
+        string prompt = !string.IsNullOrWhiteSpace(pendingQuestion.typeTestPrompt)
+            ? pendingQuestion.typeTestPrompt
+            : pendingQuestion.questionText;
+
+        string target = !string.IsNullOrWhiteSpace(pendingQuestion.typeTestAnswer)
+            ? pendingQuestion.typeTestAnswer
+            : prompt;
+
+        if (CheckTypeTestMatch(input, target))
         {
             terminalController.HideTypeTestPanel();
             PrintQuestionResponse(pendingQuestion);
             pendingQuestion = null;
             currentState = InvestState.AskMenu;
-            ShowMainPanel();
         }
         else
         {
@@ -253,10 +314,14 @@ public class CaseManager : MonoBehaviour
 
     private void PrintQuestionResponse(CaseQuestion q)
     {
+        string responseText = currentSubject.isMimicBool ? q.mimicResponse : q.realResponse;
         if (currentSubject.isMimicBool)
-            terminalController.AddLine(q.mimicResponse, TerminalLineType.Warning);
+            terminalController.AddLine(responseText, TerminalLineType.Warning);
         else
-            terminalController.AddLine(q.realResponse, TerminalLineType.Response);
+            terminalController.AddLine(responseText, TerminalLineType.Response);
+
+        // Tampilkan jawaban di UI dan refresh panel pertanyaan dengan membawa responseText
+        ShowAskQuestionPanel(responseText);
     }
 
     // ═══════════════════════════════════════════════
@@ -264,9 +329,22 @@ public class CaseManager : MonoBehaviour
     // ═══════════════════════════════════════════════
     private void HandleInfoMode(string cmd)
     {
-        if (cmd == "esc")
+        if (cmd == "back")
         {
             terminalController.HideDataPanel();
+            currentState = InvestState.MainMenu;
+            ShowMainPanel();
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // TRAITS MODE — kriteria anomali, gratis (gak makan baterai)
+    // ═══════════════════════════════════════════════
+    private void HandleTraitsMode(string cmd)
+    {
+        if (cmd == "back")
+        {
+            terminalController.HideTraitsPanel();
             currentState = InvestState.MainMenu;
             ShowMainPanel();
         }
@@ -277,7 +355,7 @@ public class CaseManager : MonoBehaviour
     // ═══════════════════════════════════════════════
     private void HandleCheckMode(string cmd, string[] parts)
     {
-        if (cmd == "esc")
+        if (cmd == "back")
         {
             terminalController.HideInspectPanel();
             currentState = InvestState.MainMenu;
@@ -285,9 +363,9 @@ public class CaseManager : MonoBehaviour
             return;
         }
 
-        if (cmd == "rotate")
+        if (cmd == "right" || cmd == "left" || cmd == "rotate")
         {
-            bool left = parts.Length > 1 && parts[1] == "left";
+            bool left = cmd == "left" || (parts.Length > 1 && parts[1] == "left");
             if (left) RotatePhotoLeft(); else RotatePhotoRight();
 
             if (currentCase.glitchOnRotate)
@@ -330,19 +408,16 @@ public class CaseManager : MonoBehaviour
     {
         if (currentSubject == null) return;
 
-        bool isCorrect = approved != currentSubject.isMimicBool;
+        // Catat statistik keputusan secara rahasia di PlayerAccuracy
+        if (PlayerAccuracy.Instance != null)
+        {
+            PlayerAccuracy.Instance.RecordVerdict(approved, currentSubject.isMimicBool);
+        }
 
         terminalController.AddLine(">>> VERDICT: " + (approved ? "APPROVED" : "DENIED") + " <<<", TerminalLineType.System);
-
         terminalController.ShowVerdictPanel(approved);
 
-        if (isCorrect)
-            terminalController.AddLine("[BENAR] Verifikasi akurat.", TerminalLineType.Response);
-        else if (currentSubject.isMimicBool && approved)
-            terminalController.AddLine("[FATAL] Kamu menyetujui MIMIC. Alpha Sector terancam bahaya.", TerminalLineType.Error);
-        else
-            terminalController.AddLine("[ERROR] Kamu menolak warga sah. Laporan dibuat.", TerminalLineType.Error);
-
+        terminalController.AddLine("Keputusan telah dicatat ke sistem pusat.", TerminalLineType.Response);
         terminalController.AddLine("Ketik 'print' untuk mencetak dokumen.", TerminalLineType.System);
         currentState = InvestState.MainMenu;
     }
@@ -350,8 +425,6 @@ public class CaseManager : MonoBehaviour
     private void StartPrintPhase()
     {
         terminalController.HideAllTutorialPanels();
-
-        terminalController.AddLine(">>> MENCETAK DOKUMEN: " + currentSubject.fullNameString + " <<<", TerminalLineType.System);
         terminalController.ShowDataPanel(currentSubject);
 
         if (currentCase.usePrintTypeTest)
@@ -381,7 +454,15 @@ public class CaseManager : MonoBehaviour
 
     private void HandleTypeTestPrint(string input)
     {
-        if (input.Trim().ToLower() == currentCase.printTypeTestAnswer.Trim().ToLower())
+        string prompt = !string.IsNullOrWhiteSpace(currentCase?.printTypeTestPrompt)
+            ? currentCase.printTypeTestPrompt
+            : "typetest";
+
+        string target = !string.IsNullOrWhiteSpace(currentCase?.printTypeTestAnswer)
+            ? currentCase.printTypeTestAnswer
+            : prompt;
+
+        if (CheckTypeTestMatch(input, target))
         {
             terminalController.HideTypeTestPanel();
             StartCoroutine(RunPrintAnimation());
@@ -392,6 +473,15 @@ public class CaseManager : MonoBehaviour
         }
     }
 
+    private bool CheckTypeTestMatch(string input, string target)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return true;
+        if (input == null) return false;
+        return string.Equals(input.Trim(), target.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Begitu loading selesai: langsung OUT (exit komputer diam-diam, TANPA teks apa pun),
+    // lalu jeda interCaseDelay detik di luar, baru kasus berikutnya mulai.
     private IEnumerator RunPrintAnimation()
     {
         currentState = InvestState.PrintAnim;
@@ -401,15 +491,16 @@ public class CaseManager : MonoBehaviour
         yield return new WaitForSeconds(terminalController.GetPrintDuration());
 
         terminalController.HideLoadingPanel();
-        terminalController.AddLine(">>> DOKUMEN TERCETAK <<<", TerminalLineType.System);
         commandProcessor.BlockInput(false);
 
         isCaseActive = false;
-        gameManager.AdvanceAfterPrint();
-    }
 
-    public void ExitComputer()
-    {
-        terminalController.AddLine("Tekan E untuk keluar dari komputer.", TerminalLineType.System);
+        // Langsung keluar komputer, diam-diam (gak ada kata-kata terakhir).
+        OnRequestExitComputer?.Invoke();
+
+        // Jeda di luar sebelum kasus berikutnya mulai.
+        yield return new WaitForSeconds(interCaseDelay);
+
+        gameManager.AdvanceAfterPrint();
     }
 }

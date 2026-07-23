@@ -11,10 +11,19 @@ public class GameManager : MonoBehaviour
     [Header("Case List")]
     [SerializeField] private CaseDefinition[] caseDefinitions;
 
+    [Header("DEBUG / Testing — JANGAN aktif pas build final")]
+    [Tooltip("Centang ini buat lompat langsung ke case-case, skip OpeningSequence sepenuhnya. Berguna buat ngetes CaseDefinition/SubjectDefinition tanpa ngulang tutorial tiap Play.")]
+    [SerializeField] private bool skipOpeningSequenceOnPlay = false;
+
     public bool IsTutorialComplete { get; private set; }
     public int CurrentCaseIndex { get; private set; } = -1;
 
     public System.Action OnAllCasesComplete;
+
+    // Dipanggil otomatis begitu dokumen selesai dicetak (lihat CaseManager.RunPrintAnimation).
+    // Subscribe ke event ini di script yang megang kamera/movement player buat keluar dari komputer,
+    // misal: GameManager.Instance.OnPlayerShouldExitComputer += ExitComputerView;
+    public System.Action OnPlayerShouldExitComputer;
 
     private void Awake()
     {
@@ -24,6 +33,31 @@ public class GameManager : MonoBehaviour
             return;
         }
         Instance = this;
+    }
+
+    private void Start()
+    {
+        if (!skipOpeningSequenceOnPlay) return;
+
+        // Matiin OpeningSequence kalau ada di scene, biar dia gak jalan barengan/rebutan input.
+        OpeningSequence openingSequence = FindFirstObjectByType<OpeningSequence>();
+        if (openingSequence != null)
+            openingSequence.gameObject.SetActive(false);
+
+        // Terminal_Panel & input field biasanya baru diaktifin OpeningSequence — kita nyalain manual.
+        if (terminalController != null)
+        {
+            terminalController.gameObject.SetActive(true);
+            terminalController.HideAllTutorialPanels();
+        }
+
+        OnTutorialComplete();
+    }
+
+    private void OnDestroy()
+    {
+        if (caseManager != null)
+            caseManager.OnRequestExitComputer -= HandleRequestExitComputer;
     }
 
     public void OnTutorialComplete()
@@ -38,7 +72,15 @@ public class GameManager : MonoBehaviour
         terminalController.FocusInput();
 
         caseManager.Initialize(this, caseDefinitions, terminalController);
+        caseManager.OnRequestExitComputer += HandleRequestExitComputer;
+
         StartNextCase();
+    }
+
+    private void HandleRequestExitComputer()
+    {
+        // Diteruskan ke siapa pun yang subscribe (biasanya script movement/kamera player).
+        OnPlayerShouldExitComputer?.Invoke();
     }
 
     public void StartNextCase()

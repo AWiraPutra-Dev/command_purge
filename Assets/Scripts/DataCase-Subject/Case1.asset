@@ -21,23 +21,28 @@ MonoBehaviour:
   - questionText: Ask About His Id
     realResponse: My Id is ID-1
     mimicResponse: 
+    commandKeyword: ID
     useTypeTest: 1
     typeTestPrompt: Ask About His Id
     typeTestAnswer: 
   - questionText: Ask About His Name
     realResponse: My Name Is Hai
     mimicResponse: 
+    commandKeyword: Name
     useTypeTest: 1
     typeTestPrompt: Ask About His Name
     typeTestAnswer: 
   - questionText: Ask About His Reason
     realResponse: Im Hungry
     mimicResponse: 
+    commandKeyword: Reason
     useTypeTest: 1
     typeTestPrompt: Ask About His Reason
     typeTestAnswer: 
+  traits:
+  - Foto Jelek
   usePrintTypeTest: 1
-  printTypeTestPrompt: 'Lorem ipsum dolot '
+  printTypeTestPrompt: Maumakannasi
   printTypeTestAnswer: 
   forceApprovedOnly: 0
   glitchOnRotate: 0

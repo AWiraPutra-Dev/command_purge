@@ -15,9 +15,10 @@ public class OpeningSequence : MonoBehaviour
     private GameObject         standbyCursor;
 
     [Header("=== Timing ===")]
-    public float storyTypeSpeed = 0.03f;
-    public float lineDelay      = 0.3f;
-    public float frameDuration  = 3.5f;
+    public float storyTypeSpeed  = 0.03f;
+    public float lineDelay       = 0.3f;
+    public float frameDuration   = 3.5f;
+    public float storyFrameDelay = 10f;  // jeda antar frame story (15-20s biar player baca)
 
     private string playerName = "";
     private bool   waitingForInput = false;
@@ -32,11 +33,30 @@ public class OpeningSequence : MonoBehaviour
     private bool            _selectionWrong;
 
     // ── CONSTANTS ────────────────────────────────────────────────
-    private const string OpeningCombinedText =
-        "[ SISTEM ALPHA-SECTOR v2.1 ]\n" +
-        "Anda adalah Verifier yang bertugas mengidentifikasi\nwarga asli dari ancaman Anomali.\n\n" +
-        "Setiap warga yang mencurigakan harus diperiksa\ndata dirinya sebelum mendapat dokumen resmi.\n\n" +
-        "Tugas pertama Anda akan menuntun langkah\ndemi langkah. Ikuti instruksi dengan saksama.";
+
+    // Placeholder "boot log" — muncul satu baris per frame (staggered + sfx),
+    // BUKAN diketik karakter-per-karakter kayak OpeningCombinedText. Ganti isinya
+    // kapan aja lewat array ini, jumlah baris bebas.
+    private static readonly string[] SystemBootLines = new string[]
+    {
+        "SYSTEM BOOTING...",
+        "memuat modul verifikasi ALPHA-SECTOR...",
+        "menyinkronkan basis data subjek...",
+        "OK.",
+    };
+
+    private static readonly string[] OpeningLines = new string[]
+    {
+        "[ SISTEM ALPHA-SECTOR v2.1 ]",
+        "Anda adalah Verifier yang bertugas mengidentifikasi",
+        "warga asli dari ancaman Anomali.",
+        "",
+        "Setiap warga yang mencurigakan harus diperiksa",
+        "data dirinya sebelum mendapat dokumen resmi.",
+        "",
+        "Tugas pertama Anda akan menuntun langkah",
+        "demi langkah. Ikuti instruksi dengan saksama.",
+    };
 
     private const string ConfirmQuestionText = "Apakah kamu mendengar suaraku?";
     private const string FolderInstruction   = "Sekarang, buka folder data untuk memulai.";
@@ -136,6 +156,7 @@ public class OpeningSequence : MonoBehaviour
     private IEnumerator RunSequence()
     {
         yield return StartCoroutine(RunBootEffect());
+        yield return StartCoroutine(RunSystemBootingLines());
         yield return StartCoroutine(RunOpeningText());
         yield return StartCoroutine(RunNameInput());
         yield return StartCoroutine(RunIyaTidak());
@@ -166,12 +187,24 @@ public class OpeningSequence : MonoBehaviour
     }
 
     // ══════════════════════════════════════════════════════════════════
+    //  PHASE: System booting — baris muncul satu-satu (staggered) + sfx per baris,
+    //  BEDA dari TypeStoryText yang karakter-per-karakter.
+    // ══════════════════════════════════════════════════════════════════
+    private IEnumerator RunSystemBootingLines()
+    {
+        storyText.text = "";
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, SystemBootLines));
+        yield return new WaitForSeconds(frameDuration);
+        storyText.text = "";
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     //  PHASE: Opening combined text
     // ══════════════════════════════════════════════════════════════════
     private IEnumerator RunOpeningText()
     {
-        yield return StartCoroutine(TypeStoryText(OpeningCombinedText, append: false));
-        yield return new WaitForSeconds(frameDuration);
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, OpeningLines));
+        yield return new WaitForSeconds(storyFrameDelay);
         storyText.text = "";
     }
 
@@ -180,14 +213,17 @@ public class OpeningSequence : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     private IEnumerator RunNameInput()
     {
-        yield return StartCoroutine(TypeStoryText("Masukkan nama kamu:", append: false));
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[] { "Masukkan nama kamu:" }));
         yield return StartCoroutine(WaitForInputRaw());
         playerName = pendingInput;
 
         storyText.text = "";
-        string confirm = "Identitas terverifikasi.\nSelamat bekerja, Verifier " + playerName + ".";
-        yield return StartCoroutine(TypeStoryText(confirm, append: false));
-        yield return new WaitForSeconds(lineDelay);
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[]
+        {
+            "Identitas terverifikasi.",
+            "Selamat bekerja, Verifier " + playerName + "."
+        }));
+        yield return new WaitForSeconds(storyFrameDelay);
         storyText.text = "";
     }
 
@@ -196,7 +232,7 @@ public class OpeningSequence : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     private IEnumerator RunIyaTidak()
     {
-        yield return StartCoroutine(TypeStoryText(ConfirmQuestionText, append: false));
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[] { ConfirmQuestionText }));
         terminalController.ShowIyaTidakPanel();
 
         while (true)
@@ -213,8 +249,8 @@ public class OpeningSequence : MonoBehaviour
 
         terminalController.HideIyaTidakPanel();
         storyText.text = "";
-        yield return StartCoroutine(TypeStoryText("Baik, kita mulai.", append: false));
-        yield return new WaitForSeconds(lineDelay);
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[] { "Baik, kita mulai." }));
+        yield return new WaitForSeconds(storyFrameDelay);
         storyText.text = "";
     }
 
@@ -223,7 +259,7 @@ public class OpeningSequence : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     private IEnumerator RunFolderPhase()
     {
-        yield return StartCoroutine(TypeStoryText(FolderInstruction, append: false));
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[] { FolderInstruction }));
 
         storyText.text = "";
         terminalController.ShowFolderIcon();
@@ -269,7 +305,7 @@ public class OpeningSequence : MonoBehaviour
 
     private IEnumerator RunSingleSelection(SubjectDataModel target, SubjectDataModel other, string instruction, string wrongMessage)
     {
-        yield return StartCoroutine(TypeStoryText(instruction, append: false));
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[] { instruction }));
         storyText.text = "";
         terminalController.ShowPhotoSelection(target, other, instruction);
 
@@ -316,7 +352,7 @@ public class OpeningSequence : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     private IEnumerator RunPrintPhase()
     {
-        yield return StartCoroutine(TypeStoryText(PrintInstruction, append: false));
+        yield return StartCoroutine(terminalController.RevealLinesStaggered(storyText, new string[] { PrintInstruction }));
 
         while (true)
         {
@@ -338,22 +374,21 @@ public class OpeningSequence : MonoBehaviour
 
         terminalController.HideDataPanel();
 
-        terminalController.ShowTypeTestPanel("KETIK: typetest");
+        terminalController.ShowTypeTestPanel("typetest");
         terminalController.AddLine("Ketik 'typetest' untuk lanjut mencetak.", TerminalLineType.Warning);
 
         while (true)
         {
             yield return StartCoroutine(WaitForInputRaw());
-            if (pendingInput.ToLower() == "typetest") break;
+            if (!string.IsNullOrEmpty(pendingInput) && pendingInput.Trim().ToLower() == "typetest") break;
             terminalController.AddLine("Ketik 'typetest' untuk lanjut.", TerminalLineType.Error);
         }
 
         terminalController.HideTypeTestPanel();
 
-        storyText.text = "";
-        yield return StartCoroutine(TypeStoryText("Mencetak dokumen...", append: false));
-        yield return new WaitForSeconds(lineDelay);
-        storyText.text = "";
+        terminalController.ShowLoadingPanel();
+        yield return new WaitForSeconds(terminalController.GetPrintDuration());
+        terminalController.HideLoadingPanel();
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -361,13 +396,8 @@ public class OpeningSequence : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     private IEnumerator RunFinalText()
     {
-        yield return StartCoroutine(TypeStoryText(
-            "[ SISTEM ] Verifikasi selesai. Lorem ipsum dolor sit amet.\n" +
-            "Anomali terus mengintai. Tetap waspada, Verifier " + playerName + ".\n\n" +
-            "Bersiaplah untuk kasus berikutnya.",
-            append: false
-        ));
-        yield return new WaitForSeconds(frameDuration);
+        storyText.text = "";
+        yield return new WaitForSeconds(storyFrameDelay);
         storyText.text = "";
     }
 
