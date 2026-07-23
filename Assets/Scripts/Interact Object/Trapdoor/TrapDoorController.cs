@@ -13,7 +13,7 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     [Header("Timing")]
     [SerializeField] private float openDuration = 0.8f;
     [SerializeField] private float closeDuration = 0.6f;
-    [SerializeField] private float autoCloseDelay = 4f;
+    [SerializeField] private float autoCloseDelay = 5f;
 
     [Header("Interaction")]
     [SerializeField] private string interactPrompt = "E for Climb Down";
@@ -22,18 +22,16 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     [SerializeField] private FPSMovement playerMovement;
     [SerializeField] private Transform topGrabTarget;
     [SerializeField] private Transform bottomGrabTarget;
+    [SerializeField] private float grabDirectionAngleOffset;
 
     [Header("Audio")]
-    [SerializeField] private AudioSource audioSource;
-    [SerializeField] private AudioClip openSound;
-    [SerializeField] private AudioClip closeSound;
+    [SerializeField] private TrapdoorSoundController trapdoorSound;
 
     private enum DoorState { Closed, Opening, Open, Closing }
     private DoorState currentState = DoorState.Closed;
 
     private Quaternion closedLocalRotation;
     private Quaternion openLocalRotation;
-    private Coroutine autoCloseCoroutine;
     private int playerInsideCount = 0;
     private Collider _doorCollider;
 
@@ -60,35 +58,64 @@ public class TrapDoorController : MonoBehaviour, IInteractable
         );
 
         if (playerMovement != null)
+        {
             playerMovement.OnLadderReleaseAtBoundary += OnPlayerReleasedLadderAtBoundary;
+            playerMovement.OnPassedMidpoint += OnPassedMidpoint;
+            playerMovement.OnClimbEnded += OnClimbEnded;
+        }
     }
 
     void OnDestroy()
     {
         if (playerMovement != null)
+        {
             playerMovement.OnLadderReleaseAtBoundary -= OnPlayerReleasedLadderAtBoundary;
+            playerMovement.OnPassedMidpoint -= OnPassedMidpoint;
+            playerMovement.OnClimbEnded -= OnClimbEnded;
+        }
     }
 
     private void OnPlayerReleasedLadderAtBoundary()
     {
-        if (currentState == DoorState.Closed)
-            StartCoroutine(OpenDoorOnlyRoutine());
+        if (playerMovement == null) return;
+
+        float playerY = playerMovement.transform.position.y;
+        float topY = topGrabTarget != null ? topGrabTarget.position.y : playerY + 2f;
+        float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : playerY - 2f;
+        float midY = (topY + bottomY) * 0.5f;
+
+        if (playerY >= midY && currentState == DoorState.Closed)
+        {
+            // Player releases at top floor -> open door
+            StartCoroutine(OpenRoutine());
+        }
+        else if (playerY < midY && currentState == DoorState.Open)
+        {
+            // Player releases at bottom floor -> close door
+            StartCoroutine(CloseRoutine());
+        }
+    }
+
+    private void OnPassedMidpoint()
+    {
+        if (currentState == DoorState.Open)
+            StartCoroutine(CloseRoutine());
+    }
+
+    private void OnClimbEnded()
+    {
+        if (currentState == DoorState.Open)
+            StartCoroutine(CloseRoutine());
     }
 
     public void OnPlayerEnterDetectionZone()
     {
         playerInsideCount++;
-        CancelAutoClose();
     }
 
     public void OnPlayerExitDetectionZone()
     {
         playerInsideCount = Mathf.Max(0, playerInsideCount - 1);
-
-        if (playerInsideCount == 0 && currentState == DoorState.Open && autoCloseDelay > 0f)
-        {
-            autoCloseCoroutine = StartCoroutine(AutoCloseCountdown());
-        }
     }
 
     public string GetInteractText()
@@ -121,25 +148,38 @@ public class TrapDoorController : MonoBehaviour, IInteractable
     {
         if (topGrabTarget != null && playerMovement != null)
         {
+            float topY = topGrabTarget.position.y;
             float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : topGrabTarget.position.y - 3f;
-            playerMovement.ForceStartClimbing(topGrabTarget.position, -topGrabTarget.forward, bottomY, -1);
+            Vector3 dir = bottomGrabTarget.forward;
+            dir.y = 0;
+            if (dir.magnitude > 0.01f) dir.Normalize();
+            else dir = -topGrabTarget.forward;
+            if (Mathf.Abs(grabDirectionAngleOffset) > 0.01f)
+                dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
+            playerMovement.ForceStartClimbing(topGrabTarget.position, dir, topY, bottomY, -1);
         }
         yield break;
+    }
+
+    public void StartClimbFromBottom()
+    {
+        if (playerMovement == null || bottomGrabTarget == null) return;
+        if (playerMovement.IsClimbing() || playerMovement.IsTransitioningToLadder()) return;
+
+        Vector3 dir = bottomGrabTarget.forward;
+        dir.y = 0;
+        if (dir.magnitude > 0.01f) dir.Normalize();
+        if (Mathf.Abs(grabDirectionAngleOffset) > 0.01f)
+            dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
+        float topY = topGrabTarget != null ? topGrabTarget.position.y : bottomGrabTarget.position.y + 3f;
+        float bottomY = bottomGrabTarget.position.y;
+        playerMovement.ForceStartClimbing(bottomGrabTarget.position, dir, topY, bottomY, 1, false);
     }
 
     public void TryOpen()
     {
         if (currentState != DoorState.Closed) return;
         StartCoroutine(OpenAndClimbRoutine());
-    }
-
-    private void CancelAutoClose()
-    {
-        if (autoCloseCoroutine != null)
-        {
-            StopCoroutine(autoCloseCoroutine);
-            autoCloseCoroutine = null;
-        }
     }
 
     private IEnumerator OpenAndClimbRoutine()
@@ -149,8 +189,8 @@ public class TrapDoorController : MonoBehaviour, IInteractable
         if (_doorCollider != null)
             _doorCollider.enabled = false;
 
-        if (audioSource != null && openSound != null)
-            audioSource.PlayOneShot(openSound);
+        if (trapdoorSound != null)
+            trapdoorSound.PlayOpenSound();
 
         float elapsed = 0f;
         Quaternion startRot = doorMeshTransform.localRotation;
@@ -169,25 +209,28 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
         if (topGrabTarget != null && playerMovement != null)
         {
+            float topY = topGrabTarget.position.y;
             float bottomY = bottomGrabTarget != null ? bottomGrabTarget.position.y : topGrabTarget.position.y - 3f;
-            playerMovement.ForceStartClimbing(topGrabTarget.position, -topGrabTarget.forward, bottomY, -1);
-        }
-
-        if (playerInsideCount == 0 && autoCloseDelay > 0f)
-        {
-            autoCloseCoroutine = StartCoroutine(AutoCloseCountdown());
+            Vector3 dir = bottomGrabTarget.forward;
+            dir.y = 0;
+            if (dir.magnitude > 0.01f) dir.Normalize();
+            else dir = -topGrabTarget.forward;
+            if (Mathf.Abs(grabDirectionAngleOffset) > 0.01f)
+                dir = Quaternion.Euler(0, grabDirectionAngleOffset, 0) * dir;
+            playerMovement.ForceStartClimbing(topGrabTarget.position, dir, topY, bottomY, -1);
         }
     }
 
-    private IEnumerator OpenDoorOnlyRoutine()
+    private IEnumerator OpenRoutine()
     {
+        if (currentState != DoorState.Closed) yield break;
         currentState = DoorState.Opening;
 
         if (_doorCollider != null)
             _doorCollider.enabled = false;
 
-        if (audioSource != null && openSound != null)
-            audioSource.PlayOneShot(openSound);
+        if (trapdoorSound != null)
+            trapdoorSound.PlayOpenSound();
 
         float elapsed = 0f;
         Quaternion startRot = doorMeshTransform.localRotation;
@@ -203,19 +246,14 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
         doorMeshTransform.localRotation = openLocalRotation;
         currentState = DoorState.Open;
-
-        if (playerInsideCount == 0 && autoCloseDelay > 0f)
-        {
-            autoCloseCoroutine = StartCoroutine(AutoCloseCountdown());
-        }
     }
 
     private IEnumerator CloseRoutine()
     {
         currentState = DoorState.Closing;
 
-        if (audioSource != null && closeSound != null)
-            audioSource.PlayOneShot(closeSound);
+        if (trapdoorSound != null)
+            trapdoorSound.PlayCloseSound();
 
         float elapsed = 0f;
         Quaternion startRot = doorMeshTransform.localRotation;
@@ -234,23 +272,6 @@ public class TrapDoorController : MonoBehaviour, IInteractable
 
         if (_doorCollider != null)
             _doorCollider.enabled = true;
-    }
-
-    private IEnumerator AutoCloseCountdown()
-    {
-        float remaining = autoCloseDelay;
-
-        while (remaining > 0f)
-        {
-            if (playerInsideCount > 0)
-                yield break;
-
-            yield return null;
-            remaining -= Time.deltaTime;
-        }
-
-        if (currentState == DoorState.Open && playerInsideCount == 0)
-            StartCoroutine(CloseRoutine());
     }
 
     private float SmoothProgress(float t)

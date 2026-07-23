@@ -13,9 +13,9 @@ public class ComputerController : MonoBehaviour, IInteractable
     [SerializeField] private GameObject cinemachineCameraObject;
 
     [Header("Settings")]
-    [SerializeField] private float lerpSpeed = 2f;
-    [SerializeField] private float lookSensitivity = 3f;
-    [SerializeField] private float maxLookAngle = 30f;
+    [SerializeField] private float lerpSpeed = 0.6f;
+    [SerializeField] private float lookSensitivity = 0.5f;
+    [SerializeField] private float maxLookAngle = 15f;
 
     private bool isUsing = false;
     private Vector3 originalCameraPosition;

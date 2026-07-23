@@ -25,7 +25,7 @@ public class InteractionManager : MonoBehaviour
         if (_fpsMovement == null)
             _fpsMovement = FindFirstObjectByType<FPSMovement>();
 
-        if (_fpsMovement != null && _fpsMovement.IsClimbing())
+        if (_fpsMovement != null && (_fpsMovement.IsClimbing() || _fpsMovement.IsTransitioningToLadder()))
         {
             return;
         }
