@@ -408,19 +408,16 @@ public class CaseManager : MonoBehaviour
     {
         if (currentSubject == null) return;
 
-        bool isCorrect = approved != currentSubject.isMimicBool;
+        // Catat statistik keputusan secara rahasia di PlayerAccuracy
+        if (PlayerAccuracy.Instance != null)
+        {
+            PlayerAccuracy.Instance.RecordVerdict(approved, currentSubject.isMimicBool);
+        }
 
         terminalController.AddLine(">>> VERDICT: " + (approved ? "APPROVED" : "DENIED") + " <<<", TerminalLineType.System);
-
         terminalController.ShowVerdictPanel(approved);
 
-        if (isCorrect)
-            terminalController.AddLine("[BENAR] Verifikasi akurat.", TerminalLineType.Response);
-        else if (currentSubject.isMimicBool && approved)
-            terminalController.AddLine("[FATAL] Kamu menyetujui MIMIC. Alpha Sector terancam bahaya.", TerminalLineType.Error);
-        else
-            terminalController.AddLine("[ERROR] Kamu menolak warga sah. Laporan dibuat.", TerminalLineType.Error);
-
+        terminalController.AddLine("Keputusan telah dicatat ke sistem pusat.", TerminalLineType.Response);
         terminalController.AddLine("Ketik 'print' untuk mencetak dokumen.", TerminalLineType.System);
         currentState = InvestState.MainMenu;
     }
