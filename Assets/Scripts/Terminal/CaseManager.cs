@@ -10,13 +10,15 @@ public class CaseManager : MonoBehaviour
         Notification,   // folder blink, tunggu "open"
         MainMenu,       // pilih ask / info / check / traits
         AskMenu,        // pilih pertanyaan (keyword dinamis per CaseQuestion)
+        ResponseDelay,  // nunggu delay jawaban NPC sebelum balik ke option
         InfoMode,        // lihat data panel, "back" balik
         CheckMode,       // inspect foto, right/left buat rotate, "back" balik
         TraitsMode,      // lihat kriteria anomali, "back" balik
         TypeTestAsk,    // ketik jawaban pertanyaan
         TypeTestPrint,  // ketik jawaban print-phase
         PrintConfirm,   // tunggu "confirm" sebelum cetak
-        PrintAnim        // loading, input block
+        PrintAnim,       // loading, input block
+        DeniedConfirm    // tunggu "confirm" setelah denied, sebelum exit tanpa print
     }
 
     private GameManager gameManager;
@@ -36,6 +38,11 @@ public class CaseManager : MonoBehaviour
 
     [Header("Jeda antar-kasus (detik) — waktu di luar komputer sebelum kasus berikutnya mulai")]
     [SerializeField] private float interCaseDelay = 20f;
+
+    [Header("Response Delay (detik) — jeda waktu NPC ngejawab sebelum balik ke option")]
+    [SerializeField] private float npcResponseDelay = 2.0f;
+
+    private Coroutine npcResponseCoroutine;
 
     public bool IsCaseActive => isCaseActive;
     public CaseDefinition CurrentCase => currentCase;
@@ -75,6 +82,9 @@ public class CaseManager : MonoBehaviour
         glitchActive = false;
         currentState = InvestState.Notification;
 
+        terminalController.UpdateBatteryFill(chancesRemaining, currentCase.maxChances);
+
+
         terminalController.HideAllTutorialPanels();
         terminalController.ShowFolderIcon();
         terminalController.ShowFolderNotification();
@@ -97,22 +107,30 @@ public class CaseManager : MonoBehaviour
         // (kecuali PrintAnim, yang inputnya sudah di-block total). State investigasi tetap disimpan.
         if (cmd == "esc")
         {
+            if (npcResponseCoroutine != null)
+            {
+                StopCoroutine(npcResponseCoroutine);
+                npcResponseCoroutine = null;
+                commandProcessor.BlockInput(false);
+            }
             OnRequestExitComputer?.Invoke();
             return;
         }
 
         switch (currentState)
         {
-            case InvestState.Notification: HandleNotification(cmd); break;
-            case InvestState.MainMenu:     HandleMainMenu(cmd); break;
-            case InvestState.AskMenu:      HandleAskMenu(cmd); break;
-            case InvestState.InfoMode:     HandleInfoMode(cmd); break;
-            case InvestState.CheckMode:     HandleCheckMode(cmd, parts); break;
-            case InvestState.TraitsMode:   HandleTraitsMode(cmd); break;
-            case InvestState.TypeTestAsk:  HandleTypeTestAsk(cmd); break;
-            case InvestState.TypeTestPrint: HandleTypeTestPrint(cmd); break;
-            case InvestState.PrintConfirm: HandlePrintConfirm(cmd); break;
-            case InvestState.PrintAnim:    break; // input di-block
+            case InvestState.Notification:   HandleNotification(cmd); break;
+            case InvestState.MainMenu:       HandleMainMenu(cmd); break;
+            case InvestState.AskMenu:        HandleAskMenu(cmd); break;
+            case InvestState.ResponseDelay:  break; // input di-block selama delay respon NPC
+            case InvestState.InfoMode:       HandleInfoMode(cmd); break;
+            case InvestState.CheckMode:      HandleCheckMode(cmd, parts); break;
+            case InvestState.TraitsMode:     HandleTraitsMode(cmd); break;
+            case InvestState.TypeTestAsk:    HandleTypeTestAsk(cmd); break;
+            case InvestState.TypeTestPrint:  HandleTypeTestPrint(cmd); break;
+            case InvestState.PrintConfirm:   HandlePrintConfirm(cmd); break;
+            case InvestState.PrintAnim:      break; // input di-block
+            case InvestState.DeniedConfirm:  HandleDeniedConfirm(cmd); break;
         }
     }
 
@@ -149,7 +167,13 @@ public class CaseManager : MonoBehaviour
     {
         terminalController.HideAllTutorialPanels();
         terminalController.ShowAskInfoCheckPanelSequential(GetFrontPhoto());
-        terminalController.AddLine("Sisa kesempatan: " + chancesRemaining, TerminalLineType.System);
+        
+        // Tampilkan baterai hanya jika gameplay aktif (bukan saat tutorial print)
+        terminalController.SetBatteryVisibility(isCaseActive);
+        terminalController.UpdateBatteryFill(chancesRemaining, currentCase.maxChances);
+
+        if (chancesRemaining <= 0)
+            terminalController.ShowForcedVerdictMode(currentCase.forceApprovedOnly);
     }
 
     // ═══════════════════════════════════════════════
@@ -167,6 +191,7 @@ public class CaseManager : MonoBehaviour
         {
             if (chancesRemaining <= 0) { NoChance(); return; }
             chancesRemaining--;
+            terminalController.UpdateBatteryFill(chancesRemaining, currentCase.maxChances);
             PrintBatteryStatus();
             terminalController.HideAllTutorialPanels();
             terminalController.ShowDataPanel(currentSubject);
@@ -177,6 +202,7 @@ public class CaseManager : MonoBehaviour
         {
             if (chancesRemaining <= 0) { NoChance(); return; }
             chancesRemaining--;
+            terminalController.UpdateBatteryFill(chancesRemaining, currentCase.maxChances);
             PrintBatteryStatus();
             currentFrameIndex = 0;
             terminalController.ShowInspectPanel(currentSubject.photoFrames, currentFrameIndex);
@@ -195,7 +221,7 @@ public class CaseManager : MonoBehaviour
         {
             if (currentCase.forceApprovedOnly && cmd != "approved")
             {
-                terminalController.AddLine("Kamu DIPAKSA menyetujui subjek ini. Ketik 'approved'.", TerminalLineType.Error);
+                terminalController.AddLine("SISTEM: Subjek ini telah diverifikasi oleh otoritas pusat. Penolakan tidak diizinkan.", TerminalLineType.Error);
                 return;
             }
             ProcessVerdict(cmd == "approved");
@@ -233,6 +259,12 @@ public class CaseManager : MonoBehaviour
     {
         if (cmd == "back")
         {
+            if (npcResponseCoroutine != null)
+            {
+                StopCoroutine(npcResponseCoroutine);
+                npcResponseCoroutine = null;
+                commandProcessor.BlockInput(false);
+            }
             terminalController.HideAskQuestionPanel();
             currentState = InvestState.MainMenu;
             ShowMainPanel();
@@ -248,6 +280,7 @@ public class CaseManager : MonoBehaviour
 
         if (chancesRemaining <= 0) { NoChance(); return; }
         chancesRemaining--;
+        terminalController.UpdateBatteryFill(chancesRemaining, currentCase.maxChances);
         PrintBatteryStatus();
 
         CaseQuestion q = currentCase.questions[idx];
@@ -314,14 +347,41 @@ public class CaseManager : MonoBehaviour
 
     private void PrintQuestionResponse(CaseQuestion q)
     {
+        if (npcResponseCoroutine != null)
+        {
+            StopCoroutine(npcResponseCoroutine);
+            npcResponseCoroutine = null;
+        }
+        npcResponseCoroutine = StartCoroutine(NPCResponseRoutine(q));
+    }
+
+    private IEnumerator NPCResponseRoutine(CaseQuestion q)
+    {
+        currentState = InvestState.ResponseDelay;
+        commandProcessor.BlockInput(true);
+
         string responseText = currentSubject.isMimicBool ? q.mimicResponse : q.realResponse;
+
+        // Print jawaban ke terminal
         if (currentSubject.isMimicBool)
             terminalController.AddLine(responseText, TerminalLineType.Warning);
         else
             terminalController.AddLine(responseText, TerminalLineType.Response);
 
-        // Tampilkan jawaban di UI dan refresh panel pertanyaan dengan membawa responseText
-        ShowAskQuestionPanel(responseText);
+        // Tampilkan hanya respon NPC di UI tanpa opsi pertanyaan dulu
+        terminalController.ShowNPCResponseOnly(responseText);
+
+        // Delay respon NPC
+        yield return new WaitForSeconds(npcResponseDelay);
+
+        commandProcessor.BlockInput(false);
+        
+        // Sembunyikan panel respon dan balik ke MainMenu (opsi awal ask, info, check)
+        terminalController.HideAskQuestionPanel();
+        currentState = InvestState.MainMenu;
+        ShowMainPanel();
+        
+        npcResponseCoroutine = null;
     }
 
     // ═══════════════════════════════════════════════
@@ -396,7 +456,17 @@ public class CaseManager : MonoBehaviour
     private IEnumerator GlitchRoutine()
     {
         terminalController.AddLine("[!!!] Sinyal terganggu...", TerminalLineType.Error);
-        yield return new WaitForSeconds(2f);
+
+        if (currentCase.glitchOnRotate)
+        {
+            yield return StartCoroutine(terminalController.ShowPhotoGlitch(
+                currentSubject.photoFrames, currentFrameIndex));
+        }
+        else
+        {
+            yield return new WaitForSeconds(2f);
+        }
+
         terminalController.AddLine("Sinyal kembali normal.", TerminalLineType.System);
         glitchActive = false;
     }
@@ -410,17 +480,51 @@ public class CaseManager : MonoBehaviour
 
         // Catat statistik keputusan secara rahasia di PlayerAccuracy
         if (PlayerAccuracy.Instance != null)
-        {
             PlayerAccuracy.Instance.RecordVerdict(approved, currentSubject.isMimicBool);
-        }
 
         terminalController.AddLine(">>> VERDICT: " + (approved ? "APPROVED" : "DENIED") + " <<<", TerminalLineType.System);
         terminalController.ShowVerdictPanel(approved);
 
-        terminalController.AddLine("Keputusan telah dicatat ke sistem pusat.", TerminalLineType.Response);
-        terminalController.AddLine("Ketik 'print' untuk mencetak dokumen.", TerminalLineType.System);
-        currentState = InvestState.MainMenu;
+        if (approved)
+        {
+            // Approved: lanjut ke fase print seperti biasa
+            terminalController.AddLine("Keputusan telah dicatat ke sistem pusat.", TerminalLineType.Response);
+            terminalController.AddLine("Ketik 'print' untuk mencetak dokumen.", TerminalLineType.System);
+            currentState = InvestState.MainMenu;
+        }
+        else
+        {
+            // Denied: minta konfirmasi sebelum exit tanpa print
+            terminalController.AddLine("Ketik 'confirm' untuk memastikan penolakan subjek ini.", TerminalLineType.Warning);
+            currentState = InvestState.DeniedConfirm;
+        }
     }
+
+    // ═══════════════════════════════════════════════
+    // DENIED CONFIRM — konfirmasi sebelum exit tanpa print
+    // ═══════════════════════════════════════════════
+    private void HandleDeniedConfirm(string cmd)
+    {
+        if (cmd == "confirm")
+        {
+            terminalController.AddLine("Terima kasih. Subjek telah dikembalikan. Shift berlanjut.", TerminalLineType.Response);
+            isCaseActive = false;
+            StartCoroutine(DeniedExitRoutine());
+        }
+        else
+        {
+            terminalController.AddLine("Ketik 'confirm' untuk memastikan penolakan.", TerminalLineType.Error);
+        }
+    }
+
+    private IEnumerator DeniedExitRoutine()
+    {
+        yield return new WaitForSeconds(1.5f);
+        OnRequestExitComputer?.Invoke();
+        yield return new WaitForSeconds(interCaseDelay);
+        gameManager.AdvanceAfterPrint();
+    }
+
 
     private void StartPrintPhase()
     {

@@ -59,6 +59,14 @@ public class TerminalController : MonoBehaviour
     [SerializeField] private TMP_Text   inspectCounterTextComponent;
     [SerializeField] private GameObject inspectLeftArrowObject;
     [SerializeField] private GameObject inspectRightArrowObject;
+    [Tooltip("Sprite foto aneh/glitch buat efek visual kasus Climax saat rotate.")]
+    [SerializeField] private Sprite     glitchPhotoSprite;
+
+    [Header("Battery UI — fill image di AskInfoCheck Panel")]
+    [Tooltip("Assign Battery_Fill Image dari Hierarchy. Fill Method: Horizontal, Fill Origin: Left.")]
+    [SerializeField] private Image batteryFillImage;
+    [Tooltip("Assign Battery_Frame GameObject dari Hierarchy untuk menyembunyikan baterai saat tutorial.")]
+    [SerializeField] private GameObject batteryFrameObject;
 
     [Header("Loading Panel — animasi print")]
     [SerializeField] private GameObject loadingPanelObject;
@@ -285,6 +293,8 @@ public class TerminalController : MonoBehaviour
         if (askQuestionListPanelObject != null) askQuestionListPanelObject.SetActive(false);
         if (traitsPanelObject         != null) traitsPanelObject.SetActive(false);
         if (verdictPanelObject        != null) verdictPanelObject.SetActive(false);
+        
+        SetBatteryVisibility(false);
     }
 
     // ═══════════════════════════════════════════════
@@ -504,7 +514,7 @@ public class TerminalController : MonoBehaviour
 
         if (maxX <= 0f) maxX = 100f;
 
-        float speed = maxX * 3f;
+        float speed = maxX * 2f;
         float currentX = 0f;
         int direction = 1;
 
@@ -729,6 +739,28 @@ public class TerminalController : MonoBehaviour
         StartCoroutine(RevealItemsStaggered(spawnedItems));
     }
 
+    // Tampilkan hanya teks jawaban NPC di UI tanpa list opsi pertanyaan (digunakan saat delay respon NPC)
+    public void ShowNPCResponseOnly(string responseText)
+    {
+        HideAllTutorialPanels();
+
+        if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(true);
+
+        if (askInfoCheckTitleText   != null) askInfoCheckTitleText.gameObject.SetActive(false);
+        if (askInfoCheckActionsText != null) askInfoCheckActionsText.gameObject.SetActive(false);
+        if (askInfoCheckVerdictText != null) askInfoCheckVerdictText.gameObject.SetActive(false);
+        if (askInfoCheckHintText    != null) askInfoCheckHintText.gameObject.SetActive(false);
+
+        if (askQuestionListPanelObject != null) askQuestionListPanelObject.SetActive(true);
+
+        if (askQuestionListTitleText != null)
+            askQuestionListTitleText.text = "JAWABAN SUBJEK";
+
+        SetAskQuestionResponse(responseText);
+
+        ClearContainer(askQuestionListContainer);
+    }
+
     public void HideAskInfoCheckPanel()
     {
         if (askInfoCheckPanelObject != null) askInfoCheckPanelObject.SetActive(false);
@@ -836,10 +868,151 @@ public class TerminalController : MonoBehaviour
         if (verdictPanelObject != null) verdictPanelObject.SetActive(true);
         if (verdictTextComponent != null)
         {
-            string status = approved ? "<color=#55FF55>APPROVED</color>" : "<color=#FF5555>DENIED</color>";
-            verdictTextComponent.text =
-                "KEPUTUSAN DITERIMA: " + status + "\n\n" +
-                "<size=80%><color=#88FF88>(Ketik 'print' di terminal untuk mencetak dokumen keputusan)</color></size>";
+            if (approved)
+            {
+                verdictTextComponent.text =
+                    "KEPUTUSAN DITERIMA: <color=#55FF55>APPROVED</color>\n\n" +
+                    "<size=80%><color=#88FF88>(Ketik 'print' di terminal untuk mencetak dokumen keputusan)</color></size>";
+            }
+            else
+            {
+                verdictTextComponent.text =
+                    "KEPUTUSAN DITERIMA: <color=#FF5555>DENIED</color>\n\n" +
+                    "<size=80%><color=#FF9999>Subjek akan dikembalikan.\nKetik 'confirm' untuk memastikan keputusan.</color></size>";
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // BATTERY UI — update fill amount & visibility
+    // ═══════════════════════════════════════════════
+    public void SetBatteryVisibility(bool visible)
+    {
+        if (batteryFrameObject != null)
+        {
+            batteryFrameObject.SetActive(visible);
+        }
+        else if (batteryFillImage != null && batteryFillImage.transform.parent != null)
+        {
+            batteryFillImage.transform.parent.gameObject.SetActive(visible);
+        }
+    }
+
+    private List<Image> spawnedBatteryBars = new List<Image>();
+
+    public void UpdateBatteryFill(int current, int max)
+    {
+        if (batteryFillImage == null)
+        {
+            Debug.LogWarning("[TerminalController] batteryFillImage belum di-assign di Inspector!");
+            return;
+        }
+
+        Transform frameTransform = batteryFrameObject != null ? batteryFrameObject.transform : batteryFillImage.transform.parent;
+        if (frameTransform == null) return;
+
+        // Bersihkan klon bar lama terlebih dahulu
+        for (int i = frameTransform.childCount - 1; i >= 0; i--)
+        {
+            Transform child = frameTransform.GetChild(i);
+            if (child.gameObject != batteryFillImage.gameObject)
+            {
+                Destroy(child.gameObject);
+            }
+        }
+        spawnedBatteryBars.Clear();
+
+        if (max <= 0)
+        {
+            batteryFillImage.gameObject.SetActive(false);
+            return;
+        }
+
+        // Tampilkan template bar dasar
+        batteryFillImage.gameObject.SetActive(true);
+        spawnedBatteryBars.Add(batteryFillImage);
+
+        // Atur HorizontalLayoutGroup otomatis pada frame agar berjejer rapi
+        HorizontalLayoutGroup layout = frameTransform.GetComponent<HorizontalLayoutGroup>();
+        if (layout == null)
+        {
+            layout = frameTransform.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = true;      // Mengatur lebar otomatis
+            layout.childControlHeight = true;     // Mengatur tinggi otomatis
+            layout.childForceExpandWidth = true;  // Membagi rata lebar frame
+            layout.childForceExpandHeight = true;
+            layout.spacing = 4f;                  // Spasi antar bar baterai
+            layout.padding = new RectOffset(6, 12, 6, 6); // Padding dari tepi frame
+        }
+
+        // Kloning template batteryFillImage hingga jumlah max
+        for (int i = 1; i < max; i++)
+        {
+            Image clone = Instantiate(batteryFillImage, frameTransform);
+            clone.name = "Battery_Fill_Clone_" + i;
+            spawnedBatteryBars.Add(clone);
+        }
+
+        // Atur status aktif/tidaknya warna ijo per bar (dari kiri ke kanan)
+        for (int i = 0; i < spawnedBatteryBars.Count; i++)
+        {
+            spawnedBatteryBars[i].gameObject.SetActive(true);
+            
+            // Atur ImageType ke Simple karena kita pakai layout bar terpisah (bukan radial/linear fillAmount lagi)
+            spawnedBatteryBars[i].type = Image.Type.Simple;
+
+            if (i < current)
+            {
+                // Bar aktif berwarna hijau penuh
+                spawnedBatteryBars[i].color = Color.white; 
+            }
+            else
+            {
+                // Bar habis berwarna abu-abu gelap transparan
+                spawnedBatteryBars[i].color = new Color(0.2f, 0.2f, 0.2f, 0.15f);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // FORCED VERDICT MODE — tampilan saat baterai habis
+    // ═══════════════════════════════════════════════
+    public void ShowForcedVerdictMode(bool forceApproveOnly)
+    {
+        if (askInfoCheckActionsText == null) return;
+        if (forceApproveOnly)
+        {
+            askInfoCheckActionsText.text =
+                "<color=#FF5555>SISTEM: Penolakan tidak diizinkan oleh otoritas pusat.</color>\n\n" +
+                "<color=#FFFF55>[approved]</color>  — setujui subjek";
+        }
+        else
+        {
+            askInfoCheckActionsText.text =
+                "<color=#FF5555>Kesempatan investigasi habis. Ambil keputusan:</color>\n\n" +
+                "<color=#55FF55>[approved]</color>  — izinkan masuk\n" +
+                "<color=#FF5555>[denied]</color>    — tolak & kembalikan";
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // PHOTO GLITCH — efek visual kasus Climax
+    // ═══════════════════════════════════════════════
+    public IEnumerator ShowPhotoGlitch(Sprite[] originalFrames, int originalIndex)
+    {
+        if (glitchPhotoSprite != null && inspectPhotoImageComponent != null)
+        {
+            inspectPhotoImageComponent.sprite = glitchPhotoSprite;
+            yield return new WaitForSeconds(1.5f);
+
+            // Kembali ke foto asli
+            if (originalFrames != null && originalIndex < originalFrames.Length)
+                inspectPhotoImageComponent.sprite = originalFrames[originalIndex];
+        }
+        else
+        {
+            yield return null;
         }
     }
 
