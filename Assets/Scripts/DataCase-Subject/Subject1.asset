@@ -15,8 +15,8 @@ MonoBehaviour:
   subjectId: D-002
   fullName: HaiRoi
   gender: Male
-  dateOfBirth: 19/01/1999
-  expiryDate: 7/17/2006
+  dateOfBirth: 19/01/1982
+  expiryDate: 7/17/2000
   isMimic: 0
   subjectPhoto: {fileID: 2090144673, guid: 814b08f5930bd2344a298309a8356e8b, type: 3}
   photoFrames:

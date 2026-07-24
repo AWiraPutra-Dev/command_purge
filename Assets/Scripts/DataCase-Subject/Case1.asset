@@ -19,7 +19,7 @@ MonoBehaviour:
   maxChances: 5
   questions:
   - questionText: Ask About His Id
-    realResponse: My Id is ID-1
+    realResponse: My Id is D-002
     mimicResponse: 
     commandKeyword: ID
     useTypeTest: 1
@@ -40,9 +40,10 @@ MonoBehaviour:
     typeTestPrompt: Ask About His Reason
     typeTestAnswer: 
   traits:
-  - Foto Jelek
+  - -Ayam ayam
+  - -Kuda
   usePrintTypeTest: 1
-  printTypeTestPrompt: Maumakannasi
+  printTypeTestPrompt: Makannasipake
   printTypeTestAnswer: 
   forceApprovedOnly: 0
   glitchOnRotate: 0
