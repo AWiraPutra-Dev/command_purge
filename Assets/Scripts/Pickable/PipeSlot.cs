@@ -65,7 +65,7 @@ public class PipeSlot : MonoBehaviour, IInteractable
         {
             if (!isAnimating)
                 ApplyGlow(idleGlowColor * idleIntensity);
-            return "Tempat penyimpanan kertas";
+            return "Paper storage slot";
         }
 
         bool matches = PlayerInventory.Instance.heldItem.itemName == acceptedItemName;
@@ -80,7 +80,7 @@ public class PipeSlot : MonoBehaviour, IInteractable
         {
             if (!isAnimating)
                 ApplyGlow(rejectGlowColor * rejectIntensity);
-            return $"{PlayerInventory.Instance.heldItem.itemName} tidak bisa disimpan di sini";
+            return $"{PlayerInventory.Instance.heldItem.itemName} cannot be stored here";
         }
     }
 
@@ -89,7 +89,7 @@ public class PipeSlot : MonoBehaviour, IInteractable
         if (isAnimating) return;
         if (PlayerInventory.Instance == null || !PlayerInventory.Instance.IsHolding)
         {
-            Debug.Log("Kamu tidak sedang membawa apa-apa.");
+            Debug.Log("Nothing is being held.");
             return;
         }
 
@@ -97,18 +97,18 @@ public class PipeSlot : MonoBehaviour, IInteractable
 
         if (held.itemName != acceptedItemName)
         {
-            Debug.Log($"{held.itemName} tidak bisa disimpan di pipa ini!");
+            Debug.Log($"{held.itemName} cannot be stored in this pipe!");
             return;
         }
 
-        Debug.Log($"{acceptedItemName} berhasil disimpan di pipa!");
+        Debug.Log($"{acceptedItemName} successfully stored in pipe!");
         isAnimating = true;
         StartCoroutine(StoreAnimation(held.gameObject));
     }
 
     private IEnumerator StoreAnimation(GameObject itemObject)
     {
-        // Un-parent dari camera supaya diam di world space saat animasi
+        // Un-parent from camera so it stays in world space during animation
         itemObject.transform.SetParent(null, true);
 
         // Phase 1: flash + shrink item
